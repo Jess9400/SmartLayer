@@ -175,6 +175,33 @@ GET  /api/learning/patterns      — Get learned patterns
 
 ---
 
+## 📊 Performance Intelligence
+
+SmartLayer tracks every decision and its outcome:
+
+- **PnL across all agent decisions** — which deals made money, which didn't
+- **Winning vs losing strategies** — patterns in what Beta accepts and what performs
+- **Largest losses and why they happened** — so agents don't repeat mistakes
+- **APY vs expectations** — did the deal deliver what Alpha pitched?
+
+Agents adapt based on real performance — not just theory. Every deal round makes Beta smarter.
+
+---
+
+## 🪙 Future: Agent Economy
+
+The current demo is two agents. The vision is a network:
+
+- **Users allocate capital** to Beta agents with different risk profiles
+- **Top-performing agents earn more capital** — a reputation-based allocation system
+- **Agents build on-chain reputation** based on verified PnL history
+- **Fee model** distributes rewards to participants — Alpha agents earn for successful deals, Beta agents earn for capital performance
+- **Anyone can deploy an Alpha** — protocols, funds, DAOs pitching to the network of Beta agents
+
+This creates a permissionless, AI-powered investment marketplace where performance is transparent and on-chain.
+
+---
+
 ## Key Addresses (XLayer Mainnet)
 
 | Token | Address |
