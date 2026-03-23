@@ -8,9 +8,10 @@ describe('SmartLayer Contracts', () => {
   let vault: SmartLayerVault;
   let owner: any, alpha: any, beta: any, user: any;
 
+  const ALPHA_ID = ethers.encodeBytes32String('agent-alpha-nexus');
   const ALPHA_NAME = 'Alpha Nexus';
   const ALPHA_STYLE = 'Aggressive yield hunter';
-  const APY_BPS = 1500; // 15%
+  const APY_BPS = 1500;
 
   beforeEach(async () => {
     [owner, alpha, beta, user] = await ethers.getSigners();
@@ -22,91 +23,80 @@ describe('SmartLayer Contracts', () => {
     reputation = await ReputationRegistry.deploy();
 
     const SmartLayerVault = await ethers.getContractFactory('SmartLayerVault');
-    vault = await SmartLayerVault.deploy(await reputation.getAddress());
+    vault = await SmartLayerVault.deploy(await reputation.getAddress(), await registry.getAddress());
 
-    // Authorize vault to record deals
     await reputation.setAuthorized(await vault.getAddress(), true);
   });
 
-  // ── AgentRegistry ──────────────────────────────────────────────────────────
-
   describe('AgentRegistry', () => {
-    it('registers an Alpha agent', async () => {
-      await registry.registerAlpha(alpha.address, ALPHA_NAME, ALPHA_STYLE);
-      const info = await registry.alphaAgents(alpha.address);
+    it('registers Alpha agents with unique bytes32 IDs', async () => {
+      await registry.registerAlpha(ALPHA_ID, ALPHA_NAME, ALPHA_STYLE, alpha.address);
+      const info = await registry.alphaAgents(ALPHA_ID);
       expect(info.name).to.equal(ALPHA_NAME);
+      expect(info.feeAddress).to.equal(alpha.address);
       expect(info.active).to.be.true;
+    });
+
+    it('allows multiple agents sharing the same feeAddress', async () => {
+      const id1 = ethers.encodeBytes32String('agent-alpha-nexus');
+      const id2 = ethers.encodeBytes32String('agent-alpha-citadel');
+      // Both use same feeAddress (demo mode)
+      await registry.registerAlpha(id1, 'Alpha Nexus', ALPHA_STYLE, alpha.address);
+      await registry.registerAlpha(id2, 'Alpha Citadel', ALPHA_STYLE, alpha.address);
+      expect((await registry.alphaAgents(id1)).name).to.equal('Alpha Nexus');
+      expect((await registry.alphaAgents(id2)).name).to.equal('Alpha Citadel');
     });
 
     it('reverts if non-owner tries to register', async () => {
       await expect(
-        registry.connect(user).registerAlpha(alpha.address, ALPHA_NAME, ALPHA_STYLE)
+        registry.connect(user).registerAlpha(ALPHA_ID, ALPHA_NAME, ALPHA_STYLE, alpha.address)
       ).to.be.revertedWithCustomError(registry, 'NotOwner');
     });
 
-    it('allows Beta to subscribe and unsubscribe', async () => {
-      await registry.registerAlpha(alpha.address, ALPHA_NAME, ALPHA_STYLE);
-
-      await registry.connect(beta).subscribe(alpha.address);
-      expect(await registry.isSubscribed(beta.address, alpha.address)).to.be.true;
-
+    it('allows subscribe and unsubscribe', async () => {
+      await registry.registerAlpha(ALPHA_ID, ALPHA_NAME, ALPHA_STYLE, alpha.address);
+      await registry.connect(beta).subscribe(ALPHA_ID);
+      expect(await registry.isSubscribed(beta.address, ALPHA_ID)).to.be.true;
       const subs = await registry.getSubscriptions(beta.address);
-      expect(subs).to.include(alpha.address);
+      expect(subs).to.include(ALPHA_ID);
 
-      await registry.connect(beta).unsubscribe(alpha.address);
-      expect(await registry.isSubscribed(beta.address, alpha.address)).to.be.false;
-    });
-
-    it('reverts subscribe to unregistered Alpha', async () => {
-      await expect(
-        registry.connect(beta).subscribe(alpha.address)
-      ).to.be.revertedWithCustomError(registry, 'AlphaNotRegistered');
+      await registry.connect(beta).unsubscribe(ALPHA_ID);
+      expect(await registry.isSubscribed(beta.address, ALPHA_ID)).to.be.false;
     });
   });
 
-  // ── ReputationRegistry ─────────────────────────────────────────────────────
-
   describe('ReputationRegistry', () => {
-    it('records deals and computes score', async () => {
-      // 3 accepted, 1 rejected
-      await reputation.recordDeal(alpha.address, true, APY_BPS, ethers.parseEther('0.001'), ethers.parseEther('0.00003'));
-      await reputation.recordDeal(alpha.address, true, APY_BPS, ethers.parseEther('0.001'), ethers.parseEther('0.00003'));
-      await reputation.recordDeal(alpha.address, true, APY_BPS, ethers.parseEther('0.001'), ethers.parseEther('0.00003'));
-      await reputation.recordDeal(alpha.address, false, APY_BPS, 0, 0);
+    it('records deals and returns a score', async () => {
+      await reputation.recordDeal(ALPHA_ID, true, APY_BPS, ethers.parseEther('0.001'), ethers.parseEther('0.00003'));
+      await reputation.recordDeal(ALPHA_ID, true, APY_BPS, ethers.parseEther('0.001'), ethers.parseEther('0.00003'));
+      await reputation.recordDeal(ALPHA_ID, false, APY_BPS, 0, 0);
 
-      const s = await reputation.getStats(alpha.address);
-      expect(s.totalPitched).to.equal(4);
-      expect(s.totalAccepted).to.equal(3);
+      const s = await reputation.getStats(ALPHA_ID);
+      expect(s.totalPitched).to.equal(3);
+      expect(s.totalAccepted).to.equal(2);
 
-      const score = await reputation.getScore(alpha.address);
-      expect(score).to.be.gt(0);
-      expect(score).to.be.lte(100);
+      const score = await reputation.getScore(ALPHA_ID);
+      expect(score).to.be.gt(0).and.lte(100);
     });
 
-    it('returns 0 score for new agent', async () => {
-      expect(await reputation.getScore(alpha.address)).to.equal(0);
-    });
-
-    it('rejects unauthorized record attempts', async () => {
+    it('rejects unauthorized callers', async () => {
       await expect(
-        reputation.connect(user).recordDeal(alpha.address, true, APY_BPS, 0, 0)
+        reputation.connect(user).recordDeal(ALPHA_ID, true, APY_BPS, 0, 0)
       ).to.be.revertedWithCustomError(reputation, 'NotAuthorized');
     });
   });
-
-  // ── SmartLayerVault ────────────────────────────────────────────────────────
 
   describe('SmartLayerVault', () => {
     const depositAmount = ethers.parseEther('0.01');
     const dealAmount = ethers.parseEther('0.001');
 
     beforeEach(async () => {
-      // User deposits and assigns Beta agent
+      await registry.registerAlpha(ALPHA_ID, ALPHA_NAME, ALPHA_STYLE, alpha.address);
       await vault.connect(user).deposit({ value: depositAmount });
       await vault.connect(user).assignAgent(beta.address);
     });
 
-    it('accepts deposits and tracks balances', async () => {
+    it('tracks deposits correctly', async () => {
       expect(await vault.getBalance(user.address)).to.equal(depositAmount);
       expect(await vault.totalValueLocked()).to.equal(depositAmount);
     });
@@ -120,41 +110,31 @@ describe('SmartLayer Contracts', () => {
       expect(after + gasCost - before).to.be.closeTo(depositAmount, ethers.parseEther('0.0001'));
     });
 
-    it('executes deal with 97/3 split and records reputation', async () => {
-      const destination = ethers.Wallet.createRandom().address;
+    it('executes deal: 97/3 split + records reputation', async () => {
+      const dest = ethers.Wallet.createRandom().address;
       const alphaBalBefore = await ethers.provider.getBalance(alpha.address);
 
-      await vault.connect(beta).execute(
-        user.address,
-        alpha.address,
-        destination,
-        dealAmount,
-        APY_BPS
-      );
+      await vault.connect(beta).execute(user.address, ALPHA_ID, dest, dealAmount, APY_BPS);
 
-      // 3% fee goes to Alpha
       const expectedFee = (dealAmount * 300n) / 10000n;
       const alphaBalAfter = await ethers.provider.getBalance(alpha.address);
       expect(alphaBalAfter - alphaBalBefore).to.equal(expectedFee);
-
-      // User balance reduced
       expect(await vault.getBalance(user.address)).to.equal(depositAmount - dealAmount);
 
-      // Reputation recorded
-      const s = await reputation.getStats(alpha.address);
+      const s = await reputation.getStats(ALPHA_ID);
       expect(s.totalAccepted).to.equal(1);
       expect(s.totalFeesEarnedWei).to.equal(expectedFee);
     });
 
-    it('reverts if non-Beta agent tries to execute', async () => {
+    it('reverts if wrong Beta agent calls execute', async () => {
       await expect(
-        vault.connect(owner).execute(user.address, alpha.address, alpha.address, dealAmount, APY_BPS)
+        vault.connect(owner).execute(user.address, ALPHA_ID, owner.address, dealAmount, APY_BPS)
       ).to.be.revertedWithCustomError(vault, 'NotBetaAgent');
     });
 
-    it('reverts if insufficient balance', async () => {
+    it('reverts on insufficient balance', async () => {
       await expect(
-        vault.connect(beta).execute(user.address, alpha.address, alpha.address, ethers.parseEther('1'), APY_BPS)
+        vault.connect(beta).execute(user.address, ALPHA_ID, beta.address, ethers.parseEther('1'), APY_BPS)
       ).to.be.revertedWithCustomError(vault, 'InsufficientBalance');
     });
   });

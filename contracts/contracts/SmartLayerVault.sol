@@ -2,41 +2,33 @@
 pragma solidity ^0.8.24;
 
 import "./ReputationRegistry.sol";
+import "./AgentRegistry.sol";
 
 /**
  * @title SmartLayerVault
- * @notice Capital delegation vault for SmartLayer.
- *
- * Users deposit XETH into this vault and assign a Beta agent to manage their funds.
- * When a deal is accepted, only the assigned Beta agent can call execute(), which:
- *   1. Routes 97% of the amount to the deal destination
- *   2. Sends 3% performance fee directly to the Alpha agent
- *   3. Records the deal in ReputationRegistry (immutable on-chain track record)
- *
- * Users retain full withdrawal rights at all times — the Beta agent can only
- * execute outbound transfers, never drain the vault.
+ * @notice Capital delegation vault. Users deposit XETH and assign a Beta agent.
+ *         execute() enforces the 97/3 split and records reputation atomically.
  */
 contract SmartLayerVault {
     address public owner;
     ReputationRegistry public immutable reputationRegistry;
+    AgentRegistry public immutable agentRegistry;
 
-    uint256 public constant FEE_BPS = 300;      // 3% Alpha performance fee
+    uint256 public constant FEE_BPS = 300;
     uint256 public constant BPS_DENOM = 10_000;
 
-    // user => deposited balance (in wei)
     mapping(address => uint256) public balances;
-    // user => assigned Beta agent address
     mapping(address => address) public betaAgent;
-    // beta agent => list of users who assigned them
     mapping(address => address[]) private _agentUsers;
 
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
-    event AgentAssigned(address indexed user, address indexed betaAgent);
+    event AgentAssigned(address indexed user, address indexed agent);
     event DealExecuted(
         address indexed user,
-        address indexed alphaAgent,
-        address indexed destination,
+        bytes32 indexed alphaId,
+        address feeRecipient,
+        address destination,
         uint256 investmentAmount,
         uint256 feeAmount,
         uint256 apyBps
@@ -48,41 +40,33 @@ contract SmartLayerVault {
     error InsufficientBalance();
     error ZeroAmount();
     error TransferFailed();
+    error AlphaNotFound();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
         _;
     }
 
-    constructor(address _reputationRegistry) {
+    constructor(address _reputationRegistry, address _agentRegistry) {
         owner = msg.sender;
         reputationRegistry = ReputationRegistry(_reputationRegistry);
+        agentRegistry = AgentRegistry(_agentRegistry);
     }
 
     // ─── User Actions ─────────────────────────────────────────────────────────
 
-    /**
-     * @notice Deposit XETH into the vault.
-     */
     function deposit() external payable {
         if (msg.value == 0) revert ZeroAmount();
         balances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
 
-    /**
-     * @notice Assign a Beta agent to manage your capital.
-     *         The agent can execute deals on your behalf but cannot withdraw to themselves.
-     */
     function assignAgent(address agent) external {
         betaAgent[msg.sender] = agent;
         _agentUsers[agent].push(msg.sender);
         emit AgentAssigned(msg.sender, agent);
     }
 
-    /**
-     * @notice Withdraw your XETH from the vault. Only you can do this.
-     */
     function withdraw(uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
         if (balances[msg.sender] < amount) revert InsufficientBalance();
@@ -95,17 +79,16 @@ contract SmartLayerVault {
     // ─── Agent Actions ────────────────────────────────────────────────────────
 
     /**
-     * @notice Execute a deal on behalf of a user. Only callable by their assigned Beta agent.
-     *
-     * @param user          The user whose balance to use
-     * @param alphaAgent    Alpha agent receiving the 3% fee
-     * @param destination   Where the 97% investment is sent (protocol / proof-of-execution address)
-     * @param amount        Total amount in wei to allocate for this deal
-     * @param apyBps        APY offered by Alpha, in basis points (for on-chain record)
+     * @notice Execute a deal. Only callable by the user's assigned Beta agent.
+     * @param user        User whose balance to deduct
+     * @param alphaId     bytes32 ID of the Alpha agent (from AgentRegistry)
+     * @param destination Where the 97% investment is sent
+     * @param amount      Total amount in wei
+     * @param apyBps      Offered APY in basis points
      */
     function execute(
         address user,
-        address payable alphaAgent,
+        bytes32 alphaId,
         address payable destination,
         uint256 amount,
         uint256 apyBps
@@ -115,24 +98,24 @@ contract SmartLayerVault {
         if (amount == 0) revert ZeroAmount();
         if (balances[user] < amount) revert InsufficientBalance();
 
+        address feeRecipient = agentRegistry.getFeeAddress(alphaId);
+        if (feeRecipient == address(0)) revert AlphaNotFound();
+
         // Checks-effects-interactions
         balances[user] -= amount;
 
         uint256 feeAmount = (amount * FEE_BPS) / BPS_DENOM;
         uint256 investmentAmount = amount - feeAmount;
 
-        // Send investment
         (bool ok1, ) = destination.call{value: investmentAmount}('');
         if (!ok1) revert TransferFailed();
 
-        // Send 3% fee to Alpha
-        (bool ok2, ) = alphaAgent.call{value: feeAmount}('');
+        (bool ok2, ) = payable(feeRecipient).call{value: feeAmount}('');
         if (!ok2) revert TransferFailed();
 
-        // Record deal on-chain (immutable reputation record)
-        reputationRegistry.recordDeal(alphaAgent, true, apyBps, investmentAmount, feeAmount);
+        reputationRegistry.recordDeal(alphaId, true, apyBps, investmentAmount, feeAmount);
 
-        emit DealExecuted(user, alphaAgent, destination, investmentAmount, feeAmount, apyBps);
+        emit DealExecuted(user, alphaId, feeRecipient, destination, investmentAmount, feeAmount, apyBps);
     }
 
     // ─── Views ────────────────────────────────────────────────────────────────
@@ -145,22 +128,15 @@ contract SmartLayerVault {
         return betaAgent[user];
     }
 
-    function getAgentUsers(address agent) external view returns (address[] memory) {
-        return _agentUsers[agent];
-    }
-
     function totalValueLocked() external view returns (uint256) {
         return address(this).balance;
     }
-
-    // ─── Admin ────────────────────────────────────────────────────────────────
 
     function transferOwnership(address newOwner) external onlyOwner {
         owner = newOwner;
     }
 
     receive() external payable {
-        // Allow direct deposits via receive (treated as deposit for msg.sender)
         balances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }

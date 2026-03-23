@@ -3,20 +3,18 @@ pragma solidity ^0.8.24;
 
 /**
  * @title ReputationRegistry
- * @notice On-chain reputation system for Alpha agents.
- *         Every deal pitched is recorded here — accepted or rejected, with APY and amounts.
- *         Reputation score (0–100) is computed from verifiable on-chain history.
- *         Authorized callers: SmartLayerVault (on execution) + operator (backend, for rejected deals).
+ * @notice On-chain reputation system for Alpha agents, keyed by bytes32 agentId.
+ *         Multiple agents can share a wallet while maintaining separate reputations.
  */
 contract ReputationRegistry {
     address public owner;
 
     struct DealRecord {
-        address alphaAgent;
+        bytes32 alphaId;
         bool accepted;
-        uint256 apyBps;           // APY in basis points (e.g. 1500 = 15.00%)
-        uint256 investmentWei;    // amount invested (0 if rejected)
-        uint256 feeEarnedWei;     // 3% fee earned (0 if rejected)
+        uint256 apyBps;
+        uint256 investmentWei;
+        uint256 feeEarnedWei;
         uint256 timestamp;
     }
 
@@ -25,20 +23,16 @@ contract ReputationRegistry {
         uint256 totalAccepted;
         uint256 totalInvestedWei;
         uint256 totalFeesEarnedWei;
-        uint256 sumApyBps;        // sum of all accepted deal APYs for avg computation
+        uint256 sumApyBps;
         uint256 lastDealAt;
     }
 
-    // alpha => stats
-    mapping(address => AlphaStats) public stats;
-    // alpha => deal history (capped at last 50 for gas)
-    mapping(address => DealRecord[]) private _history;
-
-    // authorized to record deals (Vault + backend operator)
+    mapping(bytes32 => AlphaStats) public stats;
+    mapping(bytes32 => DealRecord[]) private _history;
     mapping(address => bool) public authorized;
 
-    event DealRecorded(address indexed alpha, bool accepted, uint256 apyBps, uint256 investmentWei, uint256 feeWei);
-    event AuthorizationSet(address indexed addr, bool authorized);
+    event DealRecorded(bytes32 indexed alphaId, bool accepted, uint256 apyBps, uint256 investmentWei, uint256 feeWei);
+    event AuthorizationSet(address indexed addr, bool auth);
 
     error NotOwner();
     error NotAuthorized();
@@ -58,8 +52,6 @@ contract ReputationRegistry {
         authorized[msg.sender] = true;
     }
 
-    // ─── Admin ────────────────────────────────────────────────────────────────
-
     function setAuthorized(address addr, bool auth) external onlyOwner {
         authorized[addr] = auth;
         emit AuthorizationSet(addr, auth);
@@ -71,22 +63,14 @@ contract ReputationRegistry {
 
     // ─── Recording ────────────────────────────────────────────────────────────
 
-    /**
-     * @notice Record a deal outcome. Called by SmartLayerVault (on execute) or backend operator.
-     * @param alpha         Alpha agent address
-     * @param accepted      Whether Beta accepted the pitch
-     * @param apyBps        Offered APY in basis points
-     * @param investmentWei Amount invested (0 if rejected)
-     * @param feeEarnedWei  3% fee sent to Alpha (0 if rejected)
-     */
     function recordDeal(
-        address alpha,
+        bytes32 alphaId,
         bool accepted,
         uint256 apyBps,
         uint256 investmentWei,
         uint256 feeEarnedWei
     ) external onlyAuthorized {
-        AlphaStats storage s = stats[alpha];
+        AlphaStats storage s = stats[alphaId];
         s.totalPitched++;
         s.lastDealAt = block.timestamp;
 
@@ -97,17 +81,15 @@ contract ReputationRegistry {
             s.sumApyBps += apyBps;
         }
 
-        // Keep last 50 deals
-        DealRecord[] storage hist = _history[alpha];
+        DealRecord[] storage hist = _history[alphaId];
         if (hist.length >= 50) {
-            // Shift out the oldest
             for (uint256 i = 0; i < hist.length - 1; i++) {
                 hist[i] = hist[i + 1];
             }
             hist.pop();
         }
         hist.push(DealRecord({
-            alphaAgent: alpha,
+            alphaId: alphaId,
             accepted: accepted,
             apyBps: apyBps,
             investmentWei: investmentWei,
@@ -115,22 +97,13 @@ contract ReputationRegistry {
             timestamp: block.timestamp
         }));
 
-        emit DealRecorded(alpha, accepted, apyBps, investmentWei, feeEarnedWei);
+        emit DealRecorded(alphaId, accepted, apyBps, investmentWei, feeEarnedWei);
     }
 
-    // ─── Reputation Score ─────────────────────────────────────────────────────
+    // ─── Score ────────────────────────────────────────────────────────────────
 
-    /**
-     * @notice Compute Alpha's reputation score (0–100).
-     *
-     * Formula:
-     *   winRate     = totalAccepted / totalPitched           → 0–100  (weight 50)
-     *   volumeScore = min(totalPitched, 20) / 20             → 0–100  (weight 25)
-     *   apyScore    = min(avgApyBps / 100, 20) / 20          → 0–100  (weight 15)
-     *   recencyScore = recentAccepted (last 10) / 10         → 0–100  (weight 10)
-     */
-    function getScore(address alpha) public view returns (uint256) {
-        AlphaStats memory s = stats[alpha];
+    function getScore(bytes32 alphaId) public view returns (uint256) {
+        AlphaStats memory s = stats[alphaId];
         if (s.totalPitched == 0) return 0;
 
         uint256 winRate = (s.totalAccepted * 100) / s.totalPitched;
@@ -141,13 +114,13 @@ contract ReputationRegistry {
         uint256 avgApyPct = avgApyBps / 100;
         uint256 apyScore = avgApyPct > 20 ? 100 : (avgApyPct * 100) / 20;
 
-        uint256 recencyScore = _recentAcceptanceScore(alpha);
+        uint256 recencyScore = _recentScore(alphaId);
 
         return (winRate * 50 + volumeScore * 25 + apyScore * 15 + recencyScore * 10) / 100;
     }
 
-    function _recentAcceptanceScore(address alpha) internal view returns (uint256) {
-        DealRecord[] storage hist = _history[alpha];
+    function _recentScore(bytes32 alphaId) internal view returns (uint256) {
+        DealRecord[] storage hist = _history[alphaId];
         if (hist.length == 0) return 0;
         uint256 start = hist.length > 10 ? hist.length - 10 : 0;
         uint256 recentAccepted = 0;
@@ -160,16 +133,16 @@ contract ReputationRegistry {
 
     // ─── Views ────────────────────────────────────────────────────────────────
 
-    function getStats(address alpha) external view returns (AlphaStats memory) {
-        return stats[alpha];
+    function getStats(bytes32 alphaId) external view returns (AlphaStats memory) {
+        return stats[alphaId];
     }
 
-    function getDealHistory(address alpha) external view returns (DealRecord[] memory) {
-        return _history[alpha];
+    function getDealHistory(bytes32 alphaId) external view returns (DealRecord[] memory) {
+        return _history[alphaId];
     }
 
-    function getAvgApy(address alpha) external view returns (uint256 apyBps) {
-        AlphaStats memory s = stats[alpha];
+    function getAvgApy(bytes32 alphaId) external view returns (uint256) {
+        AlphaStats memory s = stats[alphaId];
         if (s.totalAccepted == 0) return 0;
         return s.sumApyBps / s.totalAccepted;
     }

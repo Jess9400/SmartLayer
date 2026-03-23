@@ -28,12 +28,12 @@ export interface SmartLayerVaultInterface extends Interface {
     nameOrSignature:
       | "BPS_DENOM"
       | "FEE_BPS"
+      | "agentRegistry"
       | "assignAgent"
       | "balances"
       | "betaAgent"
       | "deposit"
       | "execute"
-      | "getAgentUsers"
       | "getBalance"
       | "getBetaAgent"
       | "owner"
@@ -54,6 +54,10 @@ export interface SmartLayerVaultInterface extends Interface {
   encodeFunctionData(functionFragment: "BPS_DENOM", values?: undefined): string;
   encodeFunctionData(functionFragment: "FEE_BPS", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "agentRegistry",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "assignAgent",
     values: [AddressLike]
   ): string;
@@ -68,11 +72,7 @@ export interface SmartLayerVaultInterface extends Interface {
   encodeFunctionData(functionFragment: "deposit", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "execute",
-    values: [AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getAgentUsers",
-    values: [AddressLike]
+    values: [AddressLike, BytesLike, AddressLike, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "getBalance",
@@ -103,6 +103,10 @@ export interface SmartLayerVaultInterface extends Interface {
   decodeFunctionResult(functionFragment: "BPS_DENOM", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "FEE_BPS", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "agentRegistry",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "assignAgent",
     data: BytesLike
   ): Result;
@@ -110,10 +114,6 @@ export interface SmartLayerVaultInterface extends Interface {
   decodeFunctionResult(functionFragment: "betaAgent", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "deposit", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "execute", data: BytesLike): Result;
-  decodeFunctionResult(
-    functionFragment: "getAgentUsers",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(functionFragment: "getBalance", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getBetaAgent",
@@ -136,11 +136,11 @@ export interface SmartLayerVaultInterface extends Interface {
 }
 
 export namespace AgentAssignedEvent {
-  export type InputTuple = [user: AddressLike, betaAgent: AddressLike];
-  export type OutputTuple = [user: string, betaAgent: string];
+  export type InputTuple = [user: AddressLike, agent: AddressLike];
+  export type OutputTuple = [user: string, agent: string];
   export interface OutputObject {
     user: string;
-    betaAgent: string;
+    agent: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -151,7 +151,8 @@ export namespace AgentAssignedEvent {
 export namespace DealExecutedEvent {
   export type InputTuple = [
     user: AddressLike,
-    alphaAgent: AddressLike,
+    alphaId: BytesLike,
+    feeRecipient: AddressLike,
     destination: AddressLike,
     investmentAmount: BigNumberish,
     feeAmount: BigNumberish,
@@ -159,7 +160,8 @@ export namespace DealExecutedEvent {
   ];
   export type OutputTuple = [
     user: string,
-    alphaAgent: string,
+    alphaId: string,
+    feeRecipient: string,
     destination: string,
     investmentAmount: bigint,
     feeAmount: bigint,
@@ -167,7 +169,8 @@ export namespace DealExecutedEvent {
   ];
   export interface OutputObject {
     user: string;
-    alphaAgent: string;
+    alphaId: string;
+    feeRecipient: string;
     destination: string;
     investmentAmount: bigint;
     feeAmount: bigint;
@@ -252,6 +255,8 @@ export interface SmartLayerVault extends BaseContract {
 
   FEE_BPS: TypedContractMethod<[], [bigint], "view">;
 
+  agentRegistry: TypedContractMethod<[], [string], "view">;
+
   assignAgent: TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
 
   balances: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
@@ -263,7 +268,7 @@ export interface SmartLayerVault extends BaseContract {
   execute: TypedContractMethod<
     [
       user: AddressLike,
-      alphaAgent: AddressLike,
+      alphaId: BytesLike,
       destination: AddressLike,
       amount: BigNumberish,
       apyBps: BigNumberish
@@ -271,8 +276,6 @@ export interface SmartLayerVault extends BaseContract {
     [void],
     "nonpayable"
   >;
-
-  getAgentUsers: TypedContractMethod<[agent: AddressLike], [string[]], "view">;
 
   getBalance: TypedContractMethod<[user: AddressLike], [bigint], "view">;
 
@@ -303,6 +306,9 @@ export interface SmartLayerVault extends BaseContract {
     nameOrSignature: "FEE_BPS"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "agentRegistry"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "assignAgent"
   ): TypedContractMethod<[agent: AddressLike], [void], "nonpayable">;
   getFunction(
@@ -319,7 +325,7 @@ export interface SmartLayerVault extends BaseContract {
   ): TypedContractMethod<
     [
       user: AddressLike,
-      alphaAgent: AddressLike,
+      alphaId: BytesLike,
       destination: AddressLike,
       amount: BigNumberish,
       apyBps: BigNumberish
@@ -327,9 +333,6 @@ export interface SmartLayerVault extends BaseContract {
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "getAgentUsers"
-  ): TypedContractMethod<[agent: AddressLike], [string[]], "view">;
   getFunction(
     nameOrSignature: "getBalance"
   ): TypedContractMethod<[user: AddressLike], [bigint], "view">;
@@ -393,7 +396,7 @@ export interface SmartLayerVault extends BaseContract {
       AgentAssignedEvent.OutputObject
     >;
 
-    "DealExecuted(address,address,address,uint256,uint256,uint256)": TypedContractEvent<
+    "DealExecuted(address,bytes32,address,address,uint256,uint256,uint256)": TypedContractEvent<
       DealExecutedEvent.InputTuple,
       DealExecutedEvent.OutputTuple,
       DealExecutedEvent.OutputObject

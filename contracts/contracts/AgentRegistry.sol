@@ -3,36 +3,37 @@ pragma solidity ^0.8.24;
 
 /**
  * @title AgentRegistry
- * @notice Registers Alpha agents (protocol deal scouts) and manages Beta agent subscriptions.
- *         Alpha agents are deployed by protocols/funds to pitch deals.
- *         Beta agents (user-owned) subscribe to choose which Alphas can pitch to them.
+ * @notice Registers Alpha agents by ID (not just address) so multiple agents
+ *         can share a wallet in demo mode while maintaining distinct identities.
+ *         Beta agents subscribe to Alpha IDs to control deal flow.
  */
 contract AgentRegistry {
     address public owner;
 
     struct AlphaInfo {
+        bytes32 agentId;
         string name;
         string pitchStyle;
+        address feeAddress;   // where the 3% fee is sent
         bool active;
         uint256 registeredAt;
     }
 
-    // All registered Alpha agent addresses
-    address[] public alphaAddresses;
-    mapping(address => AlphaInfo) public alphaAgents;
+    bytes32[] public alphaIds;
+    mapping(bytes32 => AlphaInfo) public alphaAgents;
 
-    // beta => alpha => subscribed
-    mapping(address => mapping(address => bool)) public isSubscribed;
-    // beta => list of subscribed alpha addresses
-    mapping(address => address[]) private _subscriptions;
+    // subscriber => agentId => subscribed
+    mapping(address => mapping(bytes32 => bool)) public isSubscribed;
+    // subscriber => list of subscribed alpha IDs
+    mapping(address => bytes32[]) private _subscriptions;
 
-    event AlphaRegistered(address indexed alpha, string name);
-    event AlphaDeactivated(address indexed alpha);
-    event Subscribed(address indexed subscriber, address indexed alpha);
-    event Unsubscribed(address indexed subscriber, address indexed alpha);
+    event AlphaRegistered(bytes32 indexed agentId, string name, address feeAddress);
+    event AlphaDeactivated(bytes32 indexed agentId);
+    event Subscribed(address indexed subscriber, bytes32 indexed agentId);
+    event Unsubscribed(address indexed subscriber, bytes32 indexed agentId);
 
     error NotOwner();
-    error AlphaNotRegistered();
+    error AlphaNotFound();
     error AlreadyRegistered();
     error AlreadySubscribed();
     error NotSubscribed();
@@ -48,26 +49,21 @@ contract AgentRegistry {
 
     // ─── Admin ────────────────────────────────────────────────────────────────
 
-    /**
-     * @notice Register a new Alpha agent. Only owner (SmartLayer deployer).
-     */
     function registerAlpha(
-        address alpha,
+        bytes32 agentId,
         string calldata name,
-        string calldata pitchStyle
+        string calldata pitchStyle,
+        address feeAddress
     ) external onlyOwner {
-        if (alphaAgents[alpha].active) revert AlreadyRegistered();
-        alphaAgents[alpha] = AlphaInfo(name, pitchStyle, true, block.timestamp);
-        alphaAddresses.push(alpha);
-        emit AlphaRegistered(alpha, name);
+        if (alphaAgents[agentId].active) revert AlreadyRegistered();
+        alphaAgents[agentId] = AlphaInfo(agentId, name, pitchStyle, feeAddress, true, block.timestamp);
+        alphaIds.push(agentId);
+        emit AlphaRegistered(agentId, name, feeAddress);
     }
 
-    /**
-     * @notice Deactivate an Alpha agent (removes from deal flow).
-     */
-    function deactivateAlpha(address alpha) external onlyOwner {
-        alphaAgents[alpha].active = false;
-        emit AlphaDeactivated(alpha);
+    function deactivateAlpha(bytes32 agentId) external onlyOwner {
+        alphaAgents[agentId].active = false;
+        emit AlphaDeactivated(agentId);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
@@ -76,50 +72,47 @@ contract AgentRegistry {
 
     // ─── Subscriptions ────────────────────────────────────────────────────────
 
-    /**
-     * @notice Subscribe to an Alpha agent. Called by Beta agent wallet.
-     *         Only subscribed Alphas can pitch deals to this Beta agent.
-     */
-    function subscribe(address alpha) external {
-        if (!alphaAgents[alpha].active) revert AlphaNotRegistered();
-        if (isSubscribed[msg.sender][alpha]) revert AlreadySubscribed();
-        isSubscribed[msg.sender][alpha] = true;
-        _subscriptions[msg.sender].push(alpha);
-        emit Subscribed(msg.sender, alpha);
+    function subscribe(bytes32 agentId) external {
+        if (!alphaAgents[agentId].active) revert AlphaNotFound();
+        if (isSubscribed[msg.sender][agentId]) revert AlreadySubscribed();
+        isSubscribed[msg.sender][agentId] = true;
+        _subscriptions[msg.sender].push(agentId);
+        emit Subscribed(msg.sender, agentId);
     }
 
-    /**
-     * @notice Unsubscribe from an Alpha agent.
-     */
-    function unsubscribe(address alpha) external {
-        if (!isSubscribed[msg.sender][alpha]) revert NotSubscribed();
-        isSubscribed[msg.sender][alpha] = false;
-        address[] storage subs = _subscriptions[msg.sender];
+    function unsubscribe(bytes32 agentId) external {
+        if (!isSubscribed[msg.sender][agentId]) revert NotSubscribed();
+        isSubscribed[msg.sender][agentId] = false;
+        bytes32[] storage subs = _subscriptions[msg.sender];
         for (uint256 i = 0; i < subs.length; i++) {
-            if (subs[i] == alpha) {
+            if (subs[i] == agentId) {
                 subs[i] = subs[subs.length - 1];
                 subs.pop();
                 break;
             }
         }
-        emit Unsubscribed(msg.sender, alpha);
+        emit Unsubscribed(msg.sender, agentId);
     }
 
     // ─── Views ────────────────────────────────────────────────────────────────
 
-    function getSubscriptions(address beta) external view returns (address[] memory) {
-        return _subscriptions[beta];
+    function getSubscriptions(address subscriber) external view returns (bytes32[] memory) {
+        return _subscriptions[subscriber];
+    }
+
+    function getFeeAddress(bytes32 agentId) external view returns (address) {
+        return alphaAgents[agentId].feeAddress;
+    }
+
+    function getAllAlphas() external view returns (bytes32[] memory ids, AlphaInfo[] memory infos) {
+        ids = alphaIds;
+        infos = new AlphaInfo[](alphaIds.length);
+        for (uint256 i = 0; i < alphaIds.length; i++) {
+            infos[i] = alphaAgents[alphaIds[i]];
+        }
     }
 
     function getAlphaCount() external view returns (uint256) {
-        return alphaAddresses.length;
-    }
-
-    function getAllAlphas() external view returns (address[] memory addrs, AlphaInfo[] memory infos) {
-        addrs = alphaAddresses;
-        infos = new AlphaInfo[](alphaAddresses.length);
-        for (uint256 i = 0; i < alphaAddresses.length; i++) {
-            infos[i] = alphaAgents[alphaAddresses[i]];
-        }
+        return alphaIds.length;
     }
 }

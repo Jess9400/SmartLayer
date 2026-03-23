@@ -25,7 +25,7 @@ import type {
 
 export declare namespace ReputationRegistry {
   export type DealRecordStruct = {
-    alphaAgent: AddressLike;
+    alphaId: BytesLike;
     accepted: boolean;
     apyBps: BigNumberish;
     investmentWei: BigNumberish;
@@ -34,14 +34,14 @@ export declare namespace ReputationRegistry {
   };
 
   export type DealRecordStructOutput = [
-    alphaAgent: string,
+    alphaId: string,
     accepted: boolean,
     apyBps: bigint,
     investmentWei: bigint,
     feeEarnedWei: bigint,
     timestamp: bigint
   ] & {
-    alphaAgent: string;
+    alphaId: string;
     accepted: boolean;
     apyBps: bigint;
     investmentWei: bigint;
@@ -100,30 +100,24 @@ export interface ReputationRegistryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getAvgApy",
-    values: [AddressLike]
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getDealHistory",
-    values: [AddressLike]
+    values: [BytesLike]
   ): string;
-  encodeFunctionData(
-    functionFragment: "getScore",
-    values: [AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getStats",
-    values: [AddressLike]
-  ): string;
+  encodeFunctionData(functionFragment: "getScore", values: [BytesLike]): string;
+  encodeFunctionData(functionFragment: "getStats", values: [BytesLike]): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "recordDeal",
-    values: [AddressLike, boolean, BigNumberish, BigNumberish, BigNumberish]
+    values: [BytesLike, boolean, BigNumberish, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "setAuthorized",
     values: [AddressLike, boolean]
   ): string;
-  encodeFunctionData(functionFragment: "stats", values: [AddressLike]): string;
+  encodeFunctionData(functionFragment: "stats", values: [BytesLike]): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
@@ -151,11 +145,11 @@ export interface ReputationRegistryInterface extends Interface {
 }
 
 export namespace AuthorizationSetEvent {
-  export type InputTuple = [addr: AddressLike, authorized: boolean];
-  export type OutputTuple = [addr: string, authorized: boolean];
+  export type InputTuple = [addr: AddressLike, auth: boolean];
+  export type OutputTuple = [addr: string, auth: boolean];
   export interface OutputObject {
     addr: string;
-    authorized: boolean;
+    auth: boolean;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -165,21 +159,21 @@ export namespace AuthorizationSetEvent {
 
 export namespace DealRecordedEvent {
   export type InputTuple = [
-    alpha: AddressLike,
+    alphaId: BytesLike,
     accepted: boolean,
     apyBps: BigNumberish,
     investmentWei: BigNumberish,
     feeWei: BigNumberish
   ];
   export type OutputTuple = [
-    alpha: string,
+    alphaId: string,
     accepted: boolean,
     apyBps: bigint,
     investmentWei: bigint,
     feeWei: bigint
   ];
   export interface OutputObject {
-    alpha: string;
+    alphaId: string;
     accepted: boolean;
     apyBps: bigint;
     investmentWei: bigint;
@@ -236,18 +230,18 @@ export interface ReputationRegistry extends BaseContract {
 
   authorized: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
-  getAvgApy: TypedContractMethod<[alpha: AddressLike], [bigint], "view">;
+  getAvgApy: TypedContractMethod<[alphaId: BytesLike], [bigint], "view">;
 
   getDealHistory: TypedContractMethod<
-    [alpha: AddressLike],
+    [alphaId: BytesLike],
     [ReputationRegistry.DealRecordStructOutput[]],
     "view"
   >;
 
-  getScore: TypedContractMethod<[alpha: AddressLike], [bigint], "view">;
+  getScore: TypedContractMethod<[alphaId: BytesLike], [bigint], "view">;
 
   getStats: TypedContractMethod<
-    [alpha: AddressLike],
+    [alphaId: BytesLike],
     [ReputationRegistry.AlphaStatsStructOutput],
     "view"
   >;
@@ -256,7 +250,7 @@ export interface ReputationRegistry extends BaseContract {
 
   recordDeal: TypedContractMethod<
     [
-      alpha: AddressLike,
+      alphaId: BytesLike,
       accepted: boolean,
       apyBps: BigNumberish,
       investmentWei: BigNumberish,
@@ -273,7 +267,7 @@ export interface ReputationRegistry extends BaseContract {
   >;
 
   stats: TypedContractMethod<
-    [arg0: AddressLike],
+    [arg0: BytesLike],
     [
       [bigint, bigint, bigint, bigint, bigint, bigint] & {
         totalPitched: bigint;
@@ -302,21 +296,21 @@ export interface ReputationRegistry extends BaseContract {
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "getAvgApy"
-  ): TypedContractMethod<[alpha: AddressLike], [bigint], "view">;
+  ): TypedContractMethod<[alphaId: BytesLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "getDealHistory"
   ): TypedContractMethod<
-    [alpha: AddressLike],
+    [alphaId: BytesLike],
     [ReputationRegistry.DealRecordStructOutput[]],
     "view"
   >;
   getFunction(
     nameOrSignature: "getScore"
-  ): TypedContractMethod<[alpha: AddressLike], [bigint], "view">;
+  ): TypedContractMethod<[alphaId: BytesLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "getStats"
   ): TypedContractMethod<
-    [alpha: AddressLike],
+    [alphaId: BytesLike],
     [ReputationRegistry.AlphaStatsStructOutput],
     "view"
   >;
@@ -327,7 +321,7 @@ export interface ReputationRegistry extends BaseContract {
     nameOrSignature: "recordDeal"
   ): TypedContractMethod<
     [
-      alpha: AddressLike,
+      alphaId: BytesLike,
       accepted: boolean,
       apyBps: BigNumberish,
       investmentWei: BigNumberish,
@@ -346,7 +340,7 @@ export interface ReputationRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "stats"
   ): TypedContractMethod<
-    [arg0: AddressLike],
+    [arg0: BytesLike],
     [
       [bigint, bigint, bigint, bigint, bigint, bigint] & {
         totalPitched: bigint;
@@ -390,7 +384,7 @@ export interface ReputationRegistry extends BaseContract {
       AuthorizationSetEvent.OutputObject
     >;
 
-    "DealRecorded(address,bool,uint256,uint256,uint256)": TypedContractEvent<
+    "DealRecorded(bytes32,bool,uint256,uint256,uint256)": TypedContractEvent<
       DealRecordedEvent.InputTuple,
       DealRecordedEvent.OutputTuple,
       DealRecordedEvent.OutputObject

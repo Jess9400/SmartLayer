@@ -25,20 +25,26 @@ import type {
 
 export declare namespace AgentRegistry {
   export type AlphaInfoStruct = {
+    agentId: BytesLike;
     name: string;
     pitchStyle: string;
+    feeAddress: AddressLike;
     active: boolean;
     registeredAt: BigNumberish;
   };
 
   export type AlphaInfoStructOutput = [
+    agentId: string,
     name: string,
     pitchStyle: string,
+    feeAddress: string,
     active: boolean,
     registeredAt: bigint
   ] & {
+    agentId: string;
     name: string;
     pitchStyle: string;
+    feeAddress: string;
     active: boolean;
     registeredAt: bigint;
   };
@@ -47,11 +53,12 @@ export declare namespace AgentRegistry {
 export interface AgentRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "alphaAddresses"
       | "alphaAgents"
+      | "alphaIds"
       | "deactivateAlpha"
       | "getAllAlphas"
       | "getAlphaCount"
+      | "getFeeAddress"
       | "getSubscriptions"
       | "isSubscribed"
       | "owner"
@@ -70,16 +77,16 @@ export interface AgentRegistryInterface extends Interface {
   ): EventFragment;
 
   encodeFunctionData(
-    functionFragment: "alphaAddresses",
+    functionFragment: "alphaAgents",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "alphaIds",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "alphaAgents",
-    values: [AddressLike]
-  ): string;
-  encodeFunctionData(
     functionFragment: "deactivateAlpha",
-    values: [AddressLike]
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getAllAlphas",
@@ -88,6 +95,10 @@ export interface AgentRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getAlphaCount",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getFeeAddress",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getSubscriptions",
@@ -95,16 +106,16 @@ export interface AgentRegistryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "isSubscribed",
-    values: [AddressLike, AddressLike]
+    values: [AddressLike, BytesLike]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "registerAlpha",
-    values: [AddressLike, string, string]
+    values: [BytesLike, string, string, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "subscribe",
-    values: [AddressLike]
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
@@ -112,17 +123,14 @@ export interface AgentRegistryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "unsubscribe",
-    values: [AddressLike]
+    values: [BytesLike]
   ): string;
 
-  decodeFunctionResult(
-    functionFragment: "alphaAddresses",
-    data: BytesLike
-  ): Result;
   decodeFunctionResult(
     functionFragment: "alphaAgents",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "alphaIds", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "deactivateAlpha",
     data: BytesLike
@@ -133,6 +141,10 @@ export interface AgentRegistryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getAlphaCount",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getFeeAddress",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -160,10 +172,10 @@ export interface AgentRegistryInterface extends Interface {
 }
 
 export namespace AlphaDeactivatedEvent {
-  export type InputTuple = [alpha: AddressLike];
-  export type OutputTuple = [alpha: string];
+  export type InputTuple = [agentId: BytesLike];
+  export type OutputTuple = [agentId: string];
   export interface OutputObject {
-    alpha: string;
+    agentId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -172,11 +184,16 @@ export namespace AlphaDeactivatedEvent {
 }
 
 export namespace AlphaRegisteredEvent {
-  export type InputTuple = [alpha: AddressLike, name: string];
-  export type OutputTuple = [alpha: string, name: string];
+  export type InputTuple = [
+    agentId: BytesLike,
+    name: string,
+    feeAddress: AddressLike
+  ];
+  export type OutputTuple = [agentId: string, name: string, feeAddress: string];
   export interface OutputObject {
-    alpha: string;
+    agentId: string;
     name: string;
+    feeAddress: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -185,11 +202,11 @@ export namespace AlphaRegisteredEvent {
 }
 
 export namespace SubscribedEvent {
-  export type InputTuple = [subscriber: AddressLike, alpha: AddressLike];
-  export type OutputTuple = [subscriber: string, alpha: string];
+  export type InputTuple = [subscriber: AddressLike, agentId: BytesLike];
+  export type OutputTuple = [subscriber: string, agentId: string];
   export interface OutputObject {
     subscriber: string;
-    alpha: string;
+    agentId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -198,11 +215,11 @@ export namespace SubscribedEvent {
 }
 
 export namespace UnsubscribedEvent {
-  export type InputTuple = [subscriber: AddressLike, alpha: AddressLike];
-  export type OutputTuple = [subscriber: string, alpha: string];
+  export type InputTuple = [subscriber: AddressLike, agentId: BytesLike];
+  export type OutputTuple = [subscriber: string, agentId: string];
   export interface OutputObject {
     subscriber: string;
-    alpha: string;
+    agentId: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -253,14 +270,14 @@ export interface AgentRegistry extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  alphaAddresses: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
-
   alphaAgents: TypedContractMethod<
-    [arg0: AddressLike],
+    [arg0: BytesLike],
     [
-      [string, string, boolean, bigint] & {
+      [string, string, string, string, boolean, bigint] & {
+        agentId: string;
         name: string;
         pitchStyle: string;
+        feeAddress: string;
         active: boolean;
         registeredAt: bigint;
       }
@@ -268,8 +285,10 @@ export interface AgentRegistry extends BaseContract {
     "view"
   >;
 
+  alphaIds: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
+
   deactivateAlpha: TypedContractMethod<
-    [alpha: AddressLike],
+    [agentId: BytesLike],
     [void],
     "nonpayable"
   >;
@@ -278,7 +297,7 @@ export interface AgentRegistry extends BaseContract {
     [],
     [
       [string[], AgentRegistry.AlphaInfoStructOutput[]] & {
-        addrs: string[];
+        ids: string[];
         infos: AgentRegistry.AlphaInfoStructOutput[];
       }
     ],
@@ -287,14 +306,16 @@ export interface AgentRegistry extends BaseContract {
 
   getAlphaCount: TypedContractMethod<[], [bigint], "view">;
 
+  getFeeAddress: TypedContractMethod<[agentId: BytesLike], [string], "view">;
+
   getSubscriptions: TypedContractMethod<
-    [beta: AddressLike],
+    [subscriber: AddressLike],
     [string[]],
     "view"
   >;
 
   isSubscribed: TypedContractMethod<
-    [arg0: AddressLike, arg1: AddressLike],
+    [arg0: AddressLike, arg1: BytesLike],
     [boolean],
     "view"
   >;
@@ -302,12 +323,17 @@ export interface AgentRegistry extends BaseContract {
   owner: TypedContractMethod<[], [string], "view">;
 
   registerAlpha: TypedContractMethod<
-    [alpha: AddressLike, name: string, pitchStyle: string],
+    [
+      agentId: BytesLike,
+      name: string,
+      pitchStyle: string,
+      feeAddress: AddressLike
+    ],
     [void],
     "nonpayable"
   >;
 
-  subscribe: TypedContractMethod<[alpha: AddressLike], [void], "nonpayable">;
+  subscribe: TypedContractMethod<[agentId: BytesLike], [void], "nonpayable">;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
@@ -315,23 +341,22 @@ export interface AgentRegistry extends BaseContract {
     "nonpayable"
   >;
 
-  unsubscribe: TypedContractMethod<[alpha: AddressLike], [void], "nonpayable">;
+  unsubscribe: TypedContractMethod<[agentId: BytesLike], [void], "nonpayable">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
   getFunction(
-    nameOrSignature: "alphaAddresses"
-  ): TypedContractMethod<[arg0: BigNumberish], [string], "view">;
-  getFunction(
     nameOrSignature: "alphaAgents"
   ): TypedContractMethod<
-    [arg0: AddressLike],
+    [arg0: BytesLike],
     [
-      [string, string, boolean, bigint] & {
+      [string, string, string, string, boolean, bigint] & {
+        agentId: string;
         name: string;
         pitchStyle: string;
+        feeAddress: string;
         active: boolean;
         registeredAt: bigint;
       }
@@ -339,15 +364,18 @@ export interface AgentRegistry extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "alphaIds"
+  ): TypedContractMethod<[arg0: BigNumberish], [string], "view">;
+  getFunction(
     nameOrSignature: "deactivateAlpha"
-  ): TypedContractMethod<[alpha: AddressLike], [void], "nonpayable">;
+  ): TypedContractMethod<[agentId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "getAllAlphas"
   ): TypedContractMethod<
     [],
     [
       [string[], AgentRegistry.AlphaInfoStructOutput[]] & {
-        addrs: string[];
+        ids: string[];
         infos: AgentRegistry.AlphaInfoStructOutput[];
       }
     ],
@@ -357,12 +385,15 @@ export interface AgentRegistry extends BaseContract {
     nameOrSignature: "getAlphaCount"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "getFeeAddress"
+  ): TypedContractMethod<[agentId: BytesLike], [string], "view">;
+  getFunction(
     nameOrSignature: "getSubscriptions"
-  ): TypedContractMethod<[beta: AddressLike], [string[]], "view">;
+  ): TypedContractMethod<[subscriber: AddressLike], [string[]], "view">;
   getFunction(
     nameOrSignature: "isSubscribed"
   ): TypedContractMethod<
-    [arg0: AddressLike, arg1: AddressLike],
+    [arg0: AddressLike, arg1: BytesLike],
     [boolean],
     "view"
   >;
@@ -372,19 +403,24 @@ export interface AgentRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "registerAlpha"
   ): TypedContractMethod<
-    [alpha: AddressLike, name: string, pitchStyle: string],
+    [
+      agentId: BytesLike,
+      name: string,
+      pitchStyle: string,
+      feeAddress: AddressLike
+    ],
     [void],
     "nonpayable"
   >;
   getFunction(
     nameOrSignature: "subscribe"
-  ): TypedContractMethod<[alpha: AddressLike], [void], "nonpayable">;
+  ): TypedContractMethod<[agentId: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "unsubscribe"
-  ): TypedContractMethod<[alpha: AddressLike], [void], "nonpayable">;
+  ): TypedContractMethod<[agentId: BytesLike], [void], "nonpayable">;
 
   getEvent(
     key: "AlphaDeactivated"
@@ -416,7 +452,7 @@ export interface AgentRegistry extends BaseContract {
   >;
 
   filters: {
-    "AlphaDeactivated(address)": TypedContractEvent<
+    "AlphaDeactivated(bytes32)": TypedContractEvent<
       AlphaDeactivatedEvent.InputTuple,
       AlphaDeactivatedEvent.OutputTuple,
       AlphaDeactivatedEvent.OutputObject
@@ -427,7 +463,7 @@ export interface AgentRegistry extends BaseContract {
       AlphaDeactivatedEvent.OutputObject
     >;
 
-    "AlphaRegistered(address,string)": TypedContractEvent<
+    "AlphaRegistered(bytes32,string,address)": TypedContractEvent<
       AlphaRegisteredEvent.InputTuple,
       AlphaRegisteredEvent.OutputTuple,
       AlphaRegisteredEvent.OutputObject
@@ -438,7 +474,7 @@ export interface AgentRegistry extends BaseContract {
       AlphaRegisteredEvent.OutputObject
     >;
 
-    "Subscribed(address,address)": TypedContractEvent<
+    "Subscribed(address,bytes32)": TypedContractEvent<
       SubscribedEvent.InputTuple,
       SubscribedEvent.OutputTuple,
       SubscribedEvent.OutputObject
@@ -449,7 +485,7 @@ export interface AgentRegistry extends BaseContract {
       SubscribedEvent.OutputObject
     >;
 
-    "Unsubscribed(address,address)": TypedContractEvent<
+    "Unsubscribed(address,bytes32)": TypedContractEvent<
       UnsubscribedEvent.InputTuple,
       UnsubscribedEvent.OutputTuple,
       UnsubscribedEvent.OutputObject

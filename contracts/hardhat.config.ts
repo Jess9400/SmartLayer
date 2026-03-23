@@ -16,7 +16,7 @@ const config: HardhatUserConfig = {
   networks: {
     xlayerTestnet: {
       url: 'https://testrpc.xlayer.tech',
-      chainId: 195,
+      chainId: 1952,
       accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
     },
     xlayerMainnet: {
