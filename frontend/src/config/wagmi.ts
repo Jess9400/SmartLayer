@@ -15,7 +15,7 @@ export const xlayer = defineChain({
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'SmartLayer',
-  projectId: 'smartlayer-demo', // WalletConnect project ID (demo mode)
+  projectId: '15feca59530d262450d078e44c0d1e30',
   chains: [xlayer],
   ssr: false,
 });
