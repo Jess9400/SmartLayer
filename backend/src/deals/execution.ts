@@ -13,8 +13,10 @@ export async function executeDeal(
   }
 
   try {
+    // Cap at 0.001 XETH max per deal to stay within demo wallet limits
+    const cappedAmount = Math.min(deal.investmentAmount, 0.001);
     // Convert WETH amount to wei (WETH has 18 decimals)
-    const amountInWei = ethers.parseUnits(String(deal.investmentAmount), 18).toString();
+    const amountInWei = ethers.parseUnits(String(cappedAmount), 18).toString();
 
     // Execute swap: WETH -> WOKB as proof of execution on XLayer
     const toToken = TOKENS.WOKB;

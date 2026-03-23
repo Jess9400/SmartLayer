@@ -17,11 +17,12 @@ WHAT PITCHES WORKED BEFORE:
 {successfulPitches}
 
 Craft a compelling, concise pitch for this opportunity. Tailor it to what Beta responds to.
+IMPORTANT: Beta's wallet is small. Suggest an amount between 0.0005 and 0.001 XETH only.
 
 Respond ONLY in valid JSON:
 {
   "pitch": "<your pitch message, 2-3 sentences, conversational tone>",
-  "suggestedAmount": <suggested investment amount in XETH>,
+  "suggestedAmount": <suggested investment amount in XETH, must be between 0.0005 and 0.001>,
   "keySellingPoints": ["...", "..."],
   "anticipatedObjections": ["...", "..."],
   "confidence": <0-100>
@@ -53,6 +54,7 @@ YOUR MEMORY OF SIMILAR PAST DEALS:
 {similarDealsHistory}
 
 Analyze this deal thoroughly and make a decision.
+IMPORTANT: Your wallet balance is small (in XETH). If you accept, investmentAmount must be between 0.0005 and 0.001 XETH — never more than half your balance.
 
 Respond ONLY in valid JSON:
 {
