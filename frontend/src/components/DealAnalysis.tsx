@@ -44,11 +44,35 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   );
 }
 
+const RUBRIC = [
+  { icon: '🏛️', label: 'Protocol', desc: 'Audits, track record, team credibility' },
+  { icon: '📈', label: 'APY',      desc: 'Yield quality vs. market rate' },
+  { icon: '💎', label: 'TVL',      desc: 'Liquidity depth, protocol adoption' },
+  { icon: '🌍', label: 'Macro',    desc: 'Market conditions, timing risk' },
+];
+
 export default function DealAnalysis({ deal }: DealAnalysisProps) {
   if (!deal) {
     return (
-      <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 h-full flex items-center justify-center">
-        <p className="text-gray-500 text-sm">No active deal</p>
+      <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 h-full flex flex-col">
+        <h3 className="font-bold text-white flex items-center gap-2 mb-4">
+          <span>📊</span> Deal Analysis
+        </h3>
+        <div className="flex-1 flex flex-col justify-center gap-3">
+          <p className="text-gray-500 text-xs uppercase tracking-wider font-medium mb-1">How Beta scores each pitch</p>
+          {RUBRIC.map(r => (
+            <div key={r.label} className="flex items-start gap-3 bg-gray-800/50 rounded-lg px-3 py-2.5">
+              <span className="text-base shrink-0">{r.icon}</span>
+              <div>
+                <div className="text-white text-sm font-medium">{r.label}</div>
+                <div className="text-gray-500 text-xs">{r.desc}</div>
+              </div>
+            </div>
+          ))}
+          <div className="mt-1 text-xs text-gray-600 text-center">
+            Overall = 60% analysis score + 40% on-chain reputation
+          </div>
+        </div>
       </div>
     );
   }

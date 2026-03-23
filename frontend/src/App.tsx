@@ -43,9 +43,15 @@ const ALPHA_TAGLINES: Record<string, string> = {
 };
 
 const ALPHA_ICONS: Record<string, string> = {
-  'agent-alpha-nexus':   '🔥',
+  'agent-alpha-nexus': '🔥',
   'agent-alpha-citadel': '🏛️',
-  'agent-alpha-quant':   '📈',
+  'agent-alpha-quant': '📈',
+};
+
+const ALPHA_COLORS: Record<string, 'orange' | 'blue' | 'cyan'> = {
+  'agent-alpha-nexus':   'orange',
+  'agent-alpha-citadel': 'blue',
+  'agent-alpha-quant':   'cyan',
 };
 
 export default function App() {
@@ -65,6 +71,7 @@ export default function App() {
   const [txCount, setTxCount] = useState(0);
   const [vaultBalance, setVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   const { isConnected } = useAccount();
 
@@ -210,157 +217,170 @@ export default function App() {
                 {ALPHA_ICONS[roundResult.alphaId] || '🏦'} {roundResult.alphaName} won this round
               </span>
               {roundResult.protocol && (
-                <>
-                  <span className="text-green-600">·</span>
-                  <span className="text-green-400/80">{roundResult.protocol}</span>
-                </>
+                <><span className="text-green-700">·</span><span className="text-green-400/80">{roundResult.protocol}</span></>
               )}
               {roundResult.apy > 0 && (
-                <>
-                  <span className="text-green-600">·</span>
-                  <span className="text-green-300 font-bold">{roundResult.apy}% APY</span>
-                </>
+                <><span className="text-green-700">·</span><span className="text-green-300 font-bold">{roundResult.apy}% APY</span></>
               )}
               {roundResult.investmentAmount && (
-                <>
-                  <span className="text-green-600">·</span>
-                  <span className="text-green-400/80">{roundResult.investmentAmount.toFixed(5)} XETH invested</span>
-                </>
+                <><span className="text-green-700">·</span><span className="text-green-400/80">{roundResult.investmentAmount.toFixed(5)} XETH invested</span></>
               )}
               {roundResult.txHash && (
-                <>
-                  <span className="text-green-600">·</span>
-                  <a
-                    href={`https://www.oklink.com/xlayer/tx/${roundResult.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-green-400 hover:text-green-300 underline text-xs"
-                  >
-                    TX: {roundResult.txHash.slice(0, 14)}...{roundResult.txHash.slice(-6)} ↗
-                  </a>
-                </>
+                <><span className="text-green-700">·</span>
+                <a
+                  href={`https://www.oklink.com/xlayer/tx/${roundResult.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-green-400 hover:text-green-300 underline text-xs"
+                >
+                  TX: {roundResult.txHash.slice(0, 14)}...{roundResult.txHash.slice(-6)} ↗
+                </a></>
               )}
             </div>
-            <button
-              onClick={() => setRoundResult(null)}
-              className="text-green-600 hover:text-green-400 text-lg shrink-0 transition-colors"
-            >
-              ×
-            </button>
+            <button onClick={() => setRoundResult(null)} className="text-green-700 hover:text-green-400 text-xl shrink-0 transition-colors">×</button>
           </div>
         </div>
       )}
 
-      {/* Hero Section */}
+      {/* Compressed Hero */}
       <div className="border-b border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950">
-        <div className="max-w-7xl mx-auto px-6 py-10">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20 rounded-full px-3 py-1">
-                XLayer OnchainOS AI Hackathon
-              </span>
-            </div>
-            <h1 className="text-4xl font-black text-white mb-4 leading-tight">
-              Delegate Your Capital.<br />
-              <span className="text-green-400">Your Agent Invests For You.</span>
-            </h1>
-            <p className="text-gray-400 text-lg mb-3 leading-relaxed">
-              Fund managers and protocols deploy <strong className="text-gray-200">Alpha agents</strong> to pitch investment opportunities. You delegate capital to your own <strong className="text-gray-200">Beta agent</strong> — a personal AI gatekeeper that evaluates every deal, learns your risk profile, and executes on-chain investments autonomously.
-            </p>
-            <p className="text-gray-500 text-sm mb-6">
-              You don't evaluate deals anymore. <strong className="text-green-400">Your agent does.</strong>
-            </p>
-            <div className="grid grid-cols-2 gap-3 text-sm max-w-xl mb-6">
-              <div className="flex items-start gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
-                <span>Connect your wallet and delegate capital to your Beta agent</span>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between gap-8 flex-wrap">
+
+            {/* Left: headline + CTA */}
+            <div className="flex-1 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20 rounded-full px-3 py-1">
+                  XLayer OnchainOS AI Hackathon
+                </span>
               </div>
-              <div className="flex items-start gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
-                <span>3 Alpha agents compete to pitch you the best deals</span>
-              </div>
-              <div className="flex items-start gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
-                <span>Beta scores every deal with Claude AI analysis</span>
-              </div>
-              <div className="flex items-start gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</span>
-                <span>Accepted deals execute on XLayer — real TX, real funds</span>
+              <h1 className="text-3xl font-black text-white mb-2 leading-tight">
+                Delegate Your Capital.<br />
+                <span className="text-green-400">Your Agent Invests For You.</span>
+              </h1>
+              <p className="text-gray-400 text-sm mb-4 leading-relaxed max-w-lg">
+                3 competing Alpha agents pitch yield deals. Your personal Beta agent — powered by Claude AI — scores every deal and executes the best ones on XLayer. <strong className="text-gray-200">You stay in control without doing the work.</strong>
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                {isConnected ? (
+                  <button
+                    onClick={() => setShowDeposit(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
+                  >
+                    💰 Delegate Capital
+                  </button>
+                ) : (
+                  <ConnectButton label="Connect Wallet to Get Started" />
+                )}
+                <button
+                  onClick={() => setShowHowItWorks(v => !v)}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  <span>{showHowItWorks ? '▲' : '▼'}</span>
+                  How it works
+                </button>
               </div>
             </div>
 
-            {/* Flow diagram */}
-            <div className="flex items-center gap-2 mb-6 flex-wrap">
-              <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-2 text-sm">
-                <span>🏦</span>
-                <div>
-                  <div className="text-purple-300 font-semibold text-xs">3 Alpha Agents</div>
-                  <div className="text-purple-400/70 text-xs">Competing for capital</div>
+            {/* Right: live stats */}
+            <div className="grid grid-cols-2 gap-3 shrink-0">
+              {[
+                { label: 'Deal Rounds', value: roundCount || '—', color: roundCount > 0 ? 'text-white' : 'text-gray-600' },
+                { label: 'On-Chain TXs', value: txCount || '—', color: txCount > 0 ? 'text-green-400' : 'text-gray-600' },
+                { label: 'Deals Evaluated', value: betaReceived || '—', color: betaReceived > 0 ? 'text-purple-400' : 'text-gray-600' },
+                { label: 'XETH Fees Paid', value: totalFeesCollected > 0 ? totalFeesCollected.toFixed(5) : '—', color: totalFeesCollected > 0 ? 'text-yellow-400' : 'text-gray-600' },
+              ].map(s => (
+                <div key={s.label} className="bg-gray-900/80 border border-gray-800 rounded-xl px-4 py-3 text-center min-w-[110px]">
+                  <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
                 </div>
-              </div>
-              <div className="text-gray-500 text-xs">→ pitch deals →</div>
-              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2 text-sm">
-                <span>🛡️</span>
-                <div>
-                  <div className="text-green-300 font-semibold text-xs">Your Agent</div>
-                  <div className="text-green-400/70 text-xs">Beta Agent</div>
-                </div>
-              </div>
-              <div className="text-gray-500 text-xs">→ executes on-chain →</div>
-              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-2 text-sm">
-                <span>⛓️</span>
-                <div>
-                  <div className="text-blue-300 font-semibold text-xs">XLayer</div>
-                  <div className="text-blue-400/70 text-xs">Real TX on-chain</div>
-                </div>
-              </div>
+              ))}
             </div>
-
-            {isConnected ? (
-              <button
-                onClick={() => setShowDeposit(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
-              >
-                💰 Delegate Capital to Your Agent
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <ConnectButton label="Connect Wallet to Get Started" />
-              </div>
-            )}
           </div>
+
+          {/* How it works — collapsible */}
+          {showHowItWorks && (
+            <div className="mt-6 pt-6 border-t border-gray-800 grid grid-cols-2 gap-6 lg:grid-cols-4">
+              {[
+                { n: '1', text: 'Connect your wallet and delegate capital to your Beta agent' },
+                { n: '2', text: '3 Alpha agents compete — each pitching a different yield opportunity' },
+                { n: '3', text: 'Beta scores every pitch: protocol credibility, APY, TVL, macro risk' },
+                { n: '4', text: 'Best deals execute on XLayer — real TX, 97% invested, 3% fee to Alpha' },
+              ].map(s => (
+                <div key={s.n} className="flex items-start gap-3 text-sm text-gray-400">
+                  <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{s.n}</span>
+                  <span>{s.text}</span>
+                </div>
+              ))}
+              <div className="col-span-2 lg:col-span-4 flex items-center gap-3 flex-wrap pt-2">
+                <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-1.5 text-xs">
+                  <span>🏦</span>
+                  <span className="text-purple-300 font-semibold">3 Alpha Agents</span>
+                  <span className="text-purple-400/60">competing for capital</span>
+                </div>
+                <span className="text-gray-600 text-xs">→ pitch deals →</span>
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-1.5 text-xs">
+                  <span>🛡️</span>
+                  <span className="text-green-300 font-semibold">Beta Agent</span>
+                  <span className="text-green-400/60">your personal AI</span>
+                </div>
+                <span className="text-gray-600 text-xs">→ executes →</span>
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-1.5 text-xs">
+                  <span>⛓️</span>
+                  <span className="text-blue-300 font-semibold">XLayer</span>
+                  <span className="text-blue-400/60">real TX on-chain</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-4 gap-3">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-            <div className={`text-2xl font-black ${roundCount > 0 ? 'text-white' : 'text-gray-600'}`}>{roundCount || '—'}</div>
-            <div className="text-xs text-gray-500 mt-1">Deal Rounds</div>
+        {/* PRIMARY: Action + Live Activity */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleNewRound}
+              disabled={isRunning}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
+            >
+              {isRunning ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Running Deal Round...
+                </>
+              ) : '⚡ New Deal Round'}
+            </button>
+            {isConnected && beta?.walletAddress && (
+              <button
+                onClick={() => setShowDeposit(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
+              >
+                💰 Deposit to Agent
+              </button>
+            )}
+            {messages.length > 0 && (
+              <span className="text-gray-600 text-xs">{messages.length} messages</span>
+            )}
           </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-            <div className={`text-2xl font-black ${txCount > 0 ? 'text-green-400' : 'text-gray-600'}`}>{txCount || '—'}</div>
-            <div className="text-xs text-gray-500 mt-1">On-Chain TXs</div>
-          </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-            <div className={`text-2xl font-black ${betaReceived > 0 ? 'text-purple-400' : 'text-gray-600'}`}>{betaReceived || '—'}</div>
-            <div className="text-xs text-gray-500 mt-1">Deals Evaluated</div>
-          </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-            <div className={`text-2xl font-black ${totalFeesCollected > 0 ? 'text-yellow-400' : 'text-gray-600'}`}>
-              {totalFeesCollected > 0 ? totalFeesCollected.toFixed(5) : '—'}
+
+          <div className="grid grid-cols-5 gap-6">
+            <div className="col-span-3">
+              <ChatWindow messages={messages} isRunning={isRunning} onStartRound={handleNewRound} />
             </div>
-            <div className="text-xs text-gray-500 mt-1">XETH Fees Paid</div>
+            <div className="col-span-2">
+              <DealAnalysis deal={activeDeal} />
+            </div>
           </div>
         </div>
 
-        {/* 3 Competing Alpha Agents */}
+        {/* SECONDARY: 3 Alpha Agents */}
         <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium flex items-center gap-2">
-            <span>Competing Alpha Agents</span>
-            <span className="text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5 normal-case text-xs">3 agents · best pitch wins</span>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Competing Alpha Agents</span>
+            <span className="text-xs text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5">3 agents · best pitch wins</span>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {alphas.length > 0 ? alphas.map((a, i) => {
@@ -379,21 +399,20 @@ export default function App() {
                   isActive={activeAlphaIds.has(a.id)}
                   side="alpha"
                   reputationScore={lb.reputationScore}
-                  totalFeesEarned={lb.totalFeesEarned}
                   tagline={ALPHA_TAGLINES[a.id]}
+                  colorScheme={ALPHA_COLORS[a.id] || 'purple'}
                 />
               );
-            }) : ['Alpha Nexus', 'Alpha Citadel', 'Alpha Quant'].map(name => (
+            }) : ['Alpha Nexus', 'Alpha Citadel', 'Alpha Quant'].map((name, i) => (
               <AgentCard
                 key={name}
                 name={name}
                 role="Loading..."
                 balance="0"
                 walletAddress=""
-                dealsPitched={0}
-                successRate={0}
                 isActive={false}
                 side="alpha"
+                colorScheme={(['orange', 'blue', 'cyan'] as const)[i]}
               />
             ))}
           </div>
@@ -402,16 +421,14 @@ export default function App() {
         {/* Separator */}
         <div className="flex items-center gap-3">
           <div className="flex-1 border-t border-gray-800" />
-          <div className="text-gray-600 text-xs">
-            best pitch wins allocation · 60% AI score + 40% on-chain reputation
-          </div>
+          <span className="text-gray-700 text-xs">60% AI score + 40% on-chain reputation → best pitch wins allocation</span>
           <div className="flex-1 border-t border-gray-800" />
         </div>
 
-        {/* Beta Agent */}
-        <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
-          <div className="max-w-sm">
+        {/* Beta Agent + Learning Panel side by side */}
+        <div className="grid grid-cols-5 gap-6">
+          <div className="col-span-2">
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
             <AgentCard
               name={beta?.name || 'Agent Beta'}
               role={beta?.role || 'Deal Analyst'}
@@ -425,53 +442,17 @@ export default function App() {
               vaultBalance={vaultBalance}
             />
           </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={handleNewRound}
-            disabled={isRunning}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
-          >
-            {isRunning ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Running Deal Round...
-              </>
-            ) : '⚡ New Deal Round'}
-          </button>
-          {isConnected && beta?.walletAddress && (
-            <button
-              onClick={() => setShowDeposit(true)}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
-            >
-              💰 Deposit to Agent
-            </button>
-          )}
-          <span className="text-gray-500 text-sm">
-            {messages.length > 0 ? `${messages.length} messages` : 'Click to start agent negotiation'}
-          </span>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-5 gap-6">
           <div className="col-span-3">
-            <ChatWindow messages={messages} isRunning={isRunning} />
-          </div>
-          <div className="col-span-2">
-            <DealAnalysis deal={activeDeal} />
+            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Beta Learning</div>
+            <LearningPanel
+              data={learningData}
+              onRunLearning={handleRunLearning}
+              isRunning={isLearning}
+            />
           </div>
         </div>
 
-        {/* Learning Panel */}
-        <LearningPanel
-          data={learningData}
-          onRunLearning={handleRunLearning}
-          isRunning={isLearning}
-        />
-
-        {/* Alpha Leaderboard */}
+        {/* Leaderboard */}
         <Leaderboard
           entries={leaderboard}
           subscribedIds={subscribedIds}

@@ -112,7 +112,7 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
         {entries.map((entry, i) => {
           const isSubscribed = subscribedIds.includes(entry.agentId);
           const isExpanded = expandedId === entry.agentId;
