@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAccount, useSendTransaction, useBalance, useWriteContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
+import { ChainLinkIcon, CoinsIcon, CheckSuccessIcon } from './Icons';
 
 const VAULT_ABI = [
   {
@@ -127,7 +128,7 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
           <>
             {useVault && vaultAddress ? (
               <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4 flex items-start gap-2">
-                <span className="text-green-400 mt-0.5">⛓️</span>
+                <ChainLinkIcon size={14} className="text-green-400 mt-0.5 shrink-0" />
                 <div className="text-xs text-green-300">
                   <div className="font-bold mb-0.5">On-chain via SmartLayerVault</div>
                   <div className="text-green-400/70">Funds held in contract · Beta agent executes · You withdraw anytime</div>
@@ -176,9 +177,11 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
 
             <button
               onClick={handleDeposit}
-              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors"
+              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              {useVault ? '⛓️ Deposit to Vault' : '💰 Delegate to Agent'}
+              {useVault
+                ? <><ChainLinkIcon size={15} className="text-white" /> Deposit to Vault</>
+                : <><CoinsIcon size={15} className="text-white" /> Delegate to Agent</>}
             </button>
           </>
         )}
@@ -201,7 +204,9 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
 
         {step === 'success' && (
           <div className="text-center py-8">
-            <div className="text-5xl mb-4">✅</div>
+            <div className="mb-4 flex justify-center">
+              <CheckSuccessIcon size={56} className="text-green-400" />
+            </div>
             <p className="text-white font-bold text-lg mb-1">Capital Delegated!</p>
             <p className="text-gray-400 text-sm mb-1">{agentName} is now managing your funds</p>
             {useVault && <p className="text-green-400/70 text-xs mb-3">Secured in SmartLayerVault on XLayer</p>}

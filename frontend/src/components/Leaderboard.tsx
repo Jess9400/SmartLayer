@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { subscribeToAlpha, unsubscribeFromAlpha, getDealHistory } from '../services/api';
+import { TrophyIcon, RankBadge, CheckCircleIcon, XCircleIcon, RefreshCwIcon, ChainLinkIcon } from './Icons';
 
 interface LeaderboardEntry {
   agentId: string;
@@ -43,8 +44,9 @@ function TxLink({ hash }: { hash: string }) {
       href={`https://www.oklink.com/xlayer/tx/${hash}`}
       target="_blank"
       rel="noreferrer"
-      className="font-mono text-xs text-green-400 hover:text-green-300 hover:underline"
+      className="flex items-center gap-1 font-mono text-xs text-green-400 hover:text-green-300 hover:underline"
     >
+      <ChainLinkIcon size={10} className="text-green-400" />
       {hash.slice(0, 10)}...{hash.slice(-6)}
     </a>
   );
@@ -90,7 +92,7 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
     return (
       <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-6">
         <h3 className="font-bold text-white mb-1 flex items-center gap-2">
-          <span>🏆</span> Alpha Agent Leaderboard
+          <TrophyIcon size={16} className="text-yellow-400" /> Alpha Agent Leaderboard
         </h3>
         <p className="text-gray-500 text-sm">Run deal rounds to build Alpha agent track records.</p>
       </div>
@@ -102,7 +104,7 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-bold text-white flex items-center gap-2">
-            <span>🏆</span> Alpha Agent Leaderboard
+            <TrophyIcon size={16} className="text-yellow-400" /> Alpha Agent Leaderboard
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">Reputation built from on-chain track record · Subscribe to choose who pitches to your agent</p>
         </div>
@@ -123,13 +125,7 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
               {/* Main row */}
               <div className="flex items-center gap-3 p-3">
                 {/* Rank */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
-                  i === 0 ? 'bg-yellow-500/20 text-yellow-400' :
-                  i === 1 ? 'bg-gray-400/20 text-gray-300' :
-                  i === 2 ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-700 text-gray-500'
-                }`}>
-                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                </div>
+                <RankBadge rank={i} />
 
                 {/* Agent name + rep */}
                 <div className="flex-1 min-w-0">
@@ -205,8 +201,12 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
                     <div className="space-y-1.5">
                       {history.map(deal => (
                         <div key={deal.id} className="flex items-center gap-3 text-xs">
-                          <span className={`shrink-0 ${deal.decision === 'accept' ? 'text-green-400' : deal.decision === 'reject' ? 'text-red-400' : 'text-yellow-400'}`}>
-                            {deal.decision === 'accept' ? '✅' : deal.decision === 'reject' ? '❌' : '🔄'}
+                          <span className="shrink-0">
+                            {deal.decision === 'accept'
+                              ? <CheckCircleIcon size={12} className="text-green-400" />
+                              : deal.decision === 'reject'
+                              ? <XCircleIcon size={12} className="text-red-400" />
+                              : <RefreshCwIcon size={12} className="text-yellow-400" />}
                           </span>
                           <span className="text-gray-300 font-medium shrink-0">{deal.protocol}</span>
                           <span className="text-gray-500 shrink-0">{deal.pool}</span>

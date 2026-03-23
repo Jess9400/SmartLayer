@@ -7,6 +7,10 @@ import DealAnalysis from './components/DealAnalysis';
 import LearningPanel from './components/LearningPanel';
 import DepositModal from './components/DepositModal';
 import Leaderboard from './components/Leaderboard';
+import {
+  NexusIcon, CitadelIcon, QuantIcon, ShieldIcon, ChainLinkIcon,
+  LightningIcon, CoinsIcon, CheckCircleIcon,
+} from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
 import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance } from './services/api';
 
@@ -42,10 +46,10 @@ const ALPHA_TAGLINES: Record<string, string> = {
   'agent-alpha-quant':   'Data-driven · risk-adjusted metrics only',
 };
 
-const ALPHA_ICONS: Record<string, string> = {
-  'agent-alpha-nexus': '🔥',
-  'agent-alpha-citadel': '🏛️',
-  'agent-alpha-quant': '📈',
+const ALPHA_ICONS: Record<string, React.ReactNode> = {
+  'agent-alpha-nexus':   <NexusIcon size={14} className="text-orange-400" />,
+  'agent-alpha-citadel': <CitadelIcon size={14} className="text-blue-400" />,
+  'agent-alpha-quant':   <QuantIcon size={14} className="text-cyan-400" />,
 };
 
 const ALPHA_COLORS: Record<string, 'orange' | 'blue' | 'cyan'> = {
@@ -211,10 +215,11 @@ export default function App() {
       {roundResult && (
         <div className="sticky top-[57px] z-10 bg-green-950/95 border-b border-green-500/30 backdrop-blur">
           <div className="max-w-7xl mx-auto px-6 py-2.5 flex items-center gap-3">
-            <span className="text-green-400 text-lg shrink-0">✅</span>
+            <CheckCircleIcon size={18} className="text-green-400 shrink-0" />
             <div className="flex items-center gap-2 flex-wrap flex-1 text-sm">
-              <span className="font-bold text-green-300">
-                {ALPHA_ICONS[roundResult.alphaId] || '🏦'} {roundResult.alphaName} won this round
+              <span className="font-bold text-green-300 flex items-center gap-1.5">
+                {ALPHA_ICONS[roundResult.alphaId] || <NexusIcon size={14} className="text-green-400" />}
+                {roundResult.alphaName} won this round
               </span>
               {roundResult.protocol && (
                 <><span className="text-green-700">·</span><span className="text-green-400/80">{roundResult.protocol}</span></>
@@ -267,7 +272,7 @@ export default function App() {
                     onClick={() => setShowDeposit(true)}
                     className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
                   >
-                    💰 Delegate Capital
+                    <CoinsIcon size={15} className="text-white" /> Delegate Capital
                   </button>
                 ) : (
                   <ConnectButton label="Connect Wallet to Get Started" />
@@ -314,19 +319,19 @@ export default function App() {
               ))}
               <div className="col-span-2 lg:col-span-4 flex items-center gap-3 flex-wrap pt-2">
                 <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-3 py-1.5 text-xs">
-                  <span>🏦</span>
+                  <NexusIcon size={13} className="text-purple-400" />
                   <span className="text-purple-300 font-semibold">3 Alpha Agents</span>
                   <span className="text-purple-400/60">competing for capital</span>
                 </div>
                 <span className="text-gray-600 text-xs">→ pitch deals →</span>
                 <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-1.5 text-xs">
-                  <span>🛡️</span>
+                  <ShieldIcon size={13} className="text-green-400" />
                   <span className="text-green-300 font-semibold">Beta Agent</span>
                   <span className="text-green-400/60">your personal AI</span>
                 </div>
                 <span className="text-gray-600 text-xs">→ executes →</span>
                 <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-1.5 text-xs">
-                  <span>⛓️</span>
+                  <ChainLinkIcon size={13} className="text-blue-400" />
                   <span className="text-blue-300 font-semibold">XLayer</span>
                   <span className="text-blue-400/60">real TX on-chain</span>
                 </div>
@@ -351,14 +356,14 @@ export default function App() {
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Running Deal Round...
                 </>
-              ) : '⚡ New Deal Round'}
+              ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
             </button>
             {isConnected && beta?.walletAddress && (
               <button
                 onClick={() => setShowDeposit(true)}
                 className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
               >
-                💰 Deposit to Agent
+                <CoinsIcon size={15} className="text-white" /> Deposit to Agent
               </button>
             )}
             {messages.length > 0 && (

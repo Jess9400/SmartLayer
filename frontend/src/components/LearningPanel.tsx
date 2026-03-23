@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrainIcon } from './Icons';
 
 interface LearningData {
   successPatterns: string[];
@@ -23,7 +24,7 @@ export default function LearningPanel({ data, onRunLearning, isRunning }: Learni
     <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-white flex items-center gap-2">
-          <span>🧠</span> Learning Insights
+          <BrainIcon size={16} className="text-purple-400" /> Learning Insights
         </h3>
         <button
           onClick={onRunLearning}
