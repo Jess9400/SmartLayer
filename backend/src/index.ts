@@ -50,6 +50,16 @@ app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// Expose contract addresses to frontend
+app.get('/api/contracts', (_req, res) => {
+  res.json({
+    agentRegistry:      process.env.CONTRACT_AGENT_REGISTRY || null,
+    reputationRegistry: process.env.CONTRACT_REPUTATION_REGISTRY || null,
+    vault:              process.env.CONTRACT_VAULT || null,
+    configured:         !!(process.env.CONTRACT_VAULT),
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 
 async function start() {

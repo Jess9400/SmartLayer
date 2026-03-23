@@ -3,8 +3,10 @@ import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
 import { saveDeal, getAllDeals, getAlphaLeaderboard, getBetaSubscriptions, getDealsByAlpha, computeReputationScore, getAgentMemory } from '../memory/store';
+import { recordDealOnChain, contractsConfigured } from '../services/contracts';
 import { getYieldOpportunities } from '../services/defillama';
 import { WSMessage, Deal } from '../types';
+import { ethers } from 'ethers';
 
 const router = Router();
 
@@ -98,7 +100,20 @@ export function createDealRoutes(
 
       const results = await Promise.all(analysisPromises);
 
-      // 5. Proportional capital allocation: weight = analysisScore(60%) + reputationScore(40%)
+      // 5. Record rejected deals on-chain (fire-and-forget)
+      const operatorKey = process.env.AGENT_BETA_PRIVATE_KEY!;
+      if (contractsConfigured()) {
+        for (const r of results) {
+          if (r.deal.decision !== 'accept') {
+            const apyBps = Math.round(r.deal.apy * 100);
+            recordDealOnChain(operatorKey, r.alpha.id, false, apyBps, 0n, 0n)
+              .then(h => console.log(`[chain] Rejected deal recorded: ${h}`))
+              .catch(e => console.warn('[chain] Record rejected deal failed:', e.message));
+          }
+        }
+      }
+
+      // 6. Proportional capital allocation: weight = analysisScore(60%) + reputationScore(40%)
       const accepted = results.filter(r => r.deal.decision === 'accept' && r.deal.investmentAmount);
 
       if (accepted.length === 0) {
@@ -134,9 +149,12 @@ export function createDealRoutes(
       const finalDeals: Deal[] = [];
       for (const r of allocations) {
         const dealToExec = { ...r.deal, investmentAmount: Math.min(r.allocatedAmount, 0.001) };
-        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing ${r.alpha.name}'s deal on XLayer...`, timestamp: new Date().toISOString() });
+        const modeTag = contractsConfigured() ? '[Vault]' : '[Native]';
+        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing ${r.alpha.name}'s deal on XLayer ${modeTag}...`, timestamp: new Date().toISOString() });
 
-        const executed = await executeDeal(dealToExec, beta.privateKey, beta.walletAddress, r.alpha.walletAddress);
+        // Use vault user address = Beta agent address for demo (in production = depositing user's address)
+        const userAddress = contractsConfigured() ? beta.walletAddress : undefined;
+        const executed = await executeDeal(dealToExec, beta.privateKey, beta.walletAddress, r.alpha.walletAddress, userAddress);
         saveDeal(executed);
 
         if (executed.txHash) {

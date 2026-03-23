@@ -30,6 +30,8 @@ export function subscribeToAlpha(betaId: string, alphaId: string): void {
   if (!subs[betaId]) subs[betaId] = [];
   if (!subs[betaId].includes(alphaId)) subs[betaId].push(alphaId);
   saveSubscriptions(subs);
+  // Mirror to chain asynchronously (fire-and-forget)
+  _mirrorSubscribeToChain(alphaId).catch(e => console.warn('Chain subscribe failed (non-fatal):', e.message));
 }
 
 export function unsubscribeFromAlpha(betaId: string, alphaId: string): void {
@@ -37,6 +39,25 @@ export function unsubscribeFromAlpha(betaId: string, alphaId: string): void {
   if (!subs[betaId]) return;
   subs[betaId] = subs[betaId].filter(id => id !== alphaId);
   saveSubscriptions(subs);
+  _mirrorUnsubscribeToChain(alphaId).catch(e => console.warn('Chain unsubscribe failed (non-fatal):', e.message));
+}
+
+async function _mirrorSubscribeToChain(alphaId: string): Promise<void> {
+  const { contractsConfigured, subscribeOnChain } = await import('../services/contracts');
+  if (!contractsConfigured()) return;
+  const betaKey = process.env.AGENT_BETA_PRIVATE_KEY;
+  if (!betaKey) return;
+  const txHash = await subscribeOnChain(betaKey, alphaId);
+  console.log(`[chain] Subscribed to ${alphaId}: ${txHash}`);
+}
+
+async function _mirrorUnsubscribeToChain(alphaId: string): Promise<void> {
+  const { contractsConfigured, unsubscribeOnChain } = await import('../services/contracts');
+  if (!contractsConfigured()) return;
+  const betaKey = process.env.AGENT_BETA_PRIVATE_KEY;
+  if (!betaKey) return;
+  const txHash = await unsubscribeOnChain(betaKey, alphaId);
+  console.log(`[chain] Unsubscribed from ${alphaId}: ${txHash}`);
 }
 
 export function getDealsByAlpha(alphaId: string): Deal[] {
