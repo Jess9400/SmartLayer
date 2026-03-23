@@ -12,5 +12,27 @@ export const AGENT_IDS = {
   BETA:  'agent-beta',
 };
 
+// Multiple competing Alpha agents with distinct pitching personas
+export const ALPHA_AGENTS = [
+  {
+    id: 'agent-alpha-nexus',
+    name: 'Alpha Nexus',
+    role: 'Yield Hunter',
+    pitchStyle: 'You are an aggressive high-yield hunter. Lead with returns, emphasize upside and APY, be bold and confident. Your edge is finding the best rates before anyone else.',
+  },
+  {
+    id: 'agent-alpha-citadel',
+    name: 'Alpha Citadel',
+    role: 'Blue-Chip Scout',
+    pitchStyle: 'You are a conservative blue-chip advocate. Lead with security, audits, and track record. Emphasize capital preservation and protocol credibility over raw yield.',
+  },
+  {
+    id: 'agent-alpha-quant',
+    name: 'Alpha Quant',
+    role: 'Quant Analyst',
+    pitchStyle: 'You are a data-driven quantitative analyst. Lead with metrics: TVL, Sharpe ratio equivalent, risk-adjusted returns. Cite specific numbers. Be precise and analytical.',
+  },
+];
+
 export const DEFILLAMA_YIELDS_URL = 'https://yields.llama.fi/pools';
 export const OKX_BASE_URL = 'https://www.okx.com';

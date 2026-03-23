@@ -15,8 +15,11 @@ interface PitchResult {
 }
 
 export class AlphaAgent extends BaseAgent {
-  constructor(privateKey: string) {
-    super(AGENT_IDS.ALPHA, 'Agent Alpha', 'Deal Scout', privateKey);
+  pitchStyle: string;
+
+  constructor(privateKey: string, id?: string, name?: string, role?: string, pitchStyle?: string) {
+    super(id || AGENT_IDS.ALPHA, name || 'Agent Alpha', role || 'Deal Scout', privateKey);
+    this.pitchStyle = pitchStyle || 'Find the best yield opportunities and pitch them clearly and confidently.';
   }
 
   async generatePitch(opportunity: YieldOpportunity, balance: string): Promise<Deal> {
@@ -38,6 +41,8 @@ export class AlphaAgent extends BaseAgent {
       .join('\n') || 'no history yet';
 
     const prompt = ALPHA_PITCH_PROMPT
+      .replace('{agentName}', this.name)
+      .replace('{pitchStyle}', this.pitchStyle)
       .replace('{walletBalance}', balance)
       .replace('{yieldData}', JSON.stringify(opportunity, null, 2))
       .replace('{betaRiskTolerance}', betaMemory.patterns.acceptancePatterns.riskTolerance)
@@ -62,6 +67,7 @@ export class AlphaAgent extends BaseAgent {
       audited: opportunity.audited,
       contractAddress: opportunity.contractAddress,
       pitcherId: this.id,
+      pitcherAddress: this.walletAddress,
       pitchMessage: result.pitch,
       suggestedAmount: result.suggestedAmount,
       confidence: result.confidence,

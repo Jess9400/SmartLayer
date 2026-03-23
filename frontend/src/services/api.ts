@@ -34,3 +34,31 @@ export async function getLeaderboard() {
   const res = await fetch(`${BASE}/deals/leaderboard`);
   return res.json();
 }
+
+export async function getDealHistory(agentId: string) {
+  const res = await fetch(`${BASE}/deals/history/${agentId}`);
+  return res.json();
+}
+
+export async function getSubscriptions() {
+  const res = await fetch(`${BASE}/agents/subscriptions`);
+  return res.json();
+}
+
+export async function subscribeToAlpha(alphaId: string) {
+  const res = await fetch(`${BASE}/agents/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alphaId }),
+  });
+  return res.json();
+}
+
+export async function unsubscribeFromAlpha(alphaId: string) {
+  const res = await fetch(`${BASE}/agents/unsubscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alphaId }),
+  });
+  return res.json();
+}

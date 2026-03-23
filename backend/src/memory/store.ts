@@ -1,6 +1,47 @@
 import fs from 'fs';
 import path from 'path';
 import { Deal, AgentMemory } from '../types';
+import { ALPHA_AGENTS } from '../utils/constants';
+
+const SUBSCRIPTIONS_FILE = path.join(__dirname, '../../data/subscriptions.json');
+
+function loadSubscriptions(): Record<string, string[]> {
+  if (!fs.existsSync(SUBSCRIPTIONS_FILE)) {
+    // Default: Beta subscribes to all Alpha agents
+    const defaults: Record<string, string[]> = {
+      'agent-beta': ALPHA_AGENTS.map(a => a.id),
+    };
+    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(defaults, null, 2));
+    return defaults;
+  }
+  return JSON.parse(fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf-8'));
+}
+
+function saveSubscriptions(subs: Record<string, string[]>): void {
+  fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subs, null, 2));
+}
+
+export function getBetaSubscriptions(): string[] {
+  return loadSubscriptions()['agent-beta'] || ALPHA_AGENTS.map(a => a.id);
+}
+
+export function subscribeToAlpha(betaId: string, alphaId: string): void {
+  const subs = loadSubscriptions();
+  if (!subs[betaId]) subs[betaId] = [];
+  if (!subs[betaId].includes(alphaId)) subs[betaId].push(alphaId);
+  saveSubscriptions(subs);
+}
+
+export function unsubscribeFromAlpha(betaId: string, alphaId: string): void {
+  const subs = loadSubscriptions();
+  if (!subs[betaId]) return;
+  subs[betaId] = subs[betaId].filter(id => id !== alphaId);
+  saveSubscriptions(subs);
+}
+
+export function getDealsByAlpha(alphaId: string): Deal[] {
+  return load().deals.filter(d => d.pitcherId === alphaId);
+}
 
 export function computeReputationScore(memory: AgentMemory): number {
   const totalPitched = memory.dealsPitched.length;

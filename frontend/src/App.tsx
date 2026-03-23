@@ -8,7 +8,7 @@ import LearningPanel from './components/LearningPanel';
 import DepositModal from './components/DepositModal';
 import Leaderboard from './components/Leaderboard';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions } from './services/api';
 
 interface AgentState {
   id: string;
@@ -39,6 +39,7 @@ export default function App() {
   const [activeBeta, setActiveBeta] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [subscribedIds, setSubscribedIds] = useState<string[]>([]);
 
   const { isConnected } = useAccount();
 
@@ -75,9 +76,17 @@ export default function App() {
     } catch {}
   }
 
+  async function loadSubscriptions() {
+    try {
+      const data = await getSubscriptions();
+      setSubscribedIds(data.subscribedAlphaIds || []);
+    } catch {}
+  }
+
   useEffect(() => {
     loadAgents();
     loadLeaderboard();
+    loadSubscriptions();
     const interval = setInterval(() => { loadAgents(); loadLeaderboard(); }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -306,7 +315,11 @@ export default function App() {
         />
 
         {/* Alpha Leaderboard */}
-        <Leaderboard entries={leaderboard} />
+        <Leaderboard
+          entries={leaderboard}
+          subscribedIds={subscribedIds}
+          onSubscriptionChange={setSubscribedIds}
+        />
       </main>
 
       <footer className="border-t border-gray-800 mt-12 py-6 text-center text-gray-600 text-xs">

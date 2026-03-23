@@ -1,0 +1,7 @@
+{
+  "agent-beta": [
+    "agent-alpha-nexus",
+    "agent-alpha-citadel",
+    "agent-alpha-quant"
+  ]
+}

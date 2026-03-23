@@ -2,115 +2,161 @@ import { Router, Request, Response } from 'express';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
-import { saveDeal, getAllDeals, getAlphaLeaderboard } from '../memory/store';
+import { saveDeal, getAllDeals, getAlphaLeaderboard, getBetaSubscriptions, getDealsByAlpha, computeReputationScore, getAgentMemory } from '../memory/store';
 import { getYieldOpportunities } from '../services/defillama';
-import { WSMessage } from '../types';
-import { WebSocket } from 'ws';
+import { WSMessage, Deal } from '../types';
 
 const router = Router();
 
 export function createDealRoutes(
-  alpha: AlphaAgent,
+  alphas: AlphaAgent[],
   beta: BetaAgent,
   broadcast: (msg: WSMessage) => void
 ) {
-  // Get all deals
   router.get('/', (_req: Request, res: Response) => {
     res.json(getAllDeals());
   });
 
-  // Alpha leaderboard
   router.get('/leaderboard', (_req: Request, res: Response) => {
     res.json(getAlphaLeaderboard());
   });
 
-  // Discover yield opportunities
+  router.get('/history/:agentId', (req: Request, res: Response) => {
+    const deals = getDealsByAlpha(req.params.agentId)
+      .filter(d => d.decision !== undefined)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+    res.json(deals);
+  });
+
   router.get('/opportunities', async (_req: Request, res: Response) => {
     try {
       const opps = await getYieldOpportunities();
       res.json(opps);
-    } catch (err) {
+    } catch {
       res.status(500).json({ error: 'Failed to fetch opportunities' });
     }
   });
 
-  // Full deal round: discover → pitch → analyze → decide → execute → fee
+  // Competitive deal round: all subscribed Alphas pitch simultaneously → Beta scores each → proportional allocation
   router.post('/round', async (_req: Request, res: Response) => {
     try {
-      // 1. Discover
-      broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: 'Scanning DeFiLlama for yield opportunities on XLayer...', timestamp: new Date().toISOString() });
+      // 1. Discover opportunities
+      broadcast({ type: 'agent_message', agentId: 'system', agentName: 'System', message: 'Starting competitive deal round — scanning DeFiLlama for opportunities...', timestamp: new Date().toISOString() });
       const opportunities = await getYieldOpportunities();
-      const opportunity = opportunities[0];
 
-      broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: `Found ${opportunities.length} opportunities. Best: ${opportunity.protocol} ${opportunity.pool} at ${opportunity.apy}% APY`, timestamp: new Date().toISOString() });
+      // 2. Find which Alphas Beta is subscribed to
+      const subscribedIds = getBetaSubscriptions();
+      const activeAlphas = alphas.filter(a => subscribedIds.includes(a.id));
 
-      // 2. Pitch
-      broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: 'Crafting pitch for Agent Beta...', timestamp: new Date().toISOString() });
-      const alphaBalance = await alpha.getBalance();
-      let deal = await alpha.generatePitch(opportunity, alphaBalance);
-      deal = { ...deal, pitcherAddress: alpha.walletAddress };
-      saveDeal(deal);
-
-      broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: deal.pitchMessage, timestamp: new Date().toISOString() });
-      broadcast({ type: 'deal_update', deal, timestamp: new Date().toISOString() });
-
-      // 3. Analyze
-      broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: 'Received pitch. Running deep analysis...', timestamp: new Date().toISOString() });
-      const betaBalance = await beta.getBalance();
-      deal = await beta.analyzeDeal(deal, betaBalance);
-      saveDeal(deal);
-
-      if (deal.analysisResult) {
-        broadcast({ type: 'analysis_update', deal, timestamp: new Date().toISOString() });
+      if (activeAlphas.length === 0) {
+        res.json({ error: 'Beta has no subscribed Alpha agents' });
+        return;
       }
 
-      // 4. Decision message
-      const decisionEmoji = deal.decision === 'accept' ? '✅' : deal.decision === 'counter' ? '🔄' : '❌';
       broadcast({
-        type: 'agent_message',
-        agentId: beta.id,
-        agentName: beta.name,
-        message: `${decisionEmoji} ${deal.decisionReasoning}`,
+        type: 'agent_message', agentId: 'system', agentName: 'System',
+        message: `${activeAlphas.length} Alpha agent${activeAlphas.length > 1 ? 's' : ''} competing: ${activeAlphas.map(a => a.name).join(', ')}`,
+        timestamp: new Date().toISOString()
+      });
+
+      // 3. All Alphas pitch in parallel (each gets a different opportunity)
+      const betaBalance = await beta.getBalance();
+      const pitchPromises = activeAlphas.map(async (alpha, i) => {
+        const opp = opportunities[i % opportunities.length];
+        broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: `Crafting pitch for ${opp.protocol} ${opp.pool} @ ${opp.apy}% APY...`, timestamp: new Date().toISOString() });
+        const alphaBalance = await alpha.getBalance();
+        const deal = await alpha.generatePitch(opp, alphaBalance);
+        const dealWithAddr = { ...deal, pitcherAddress: alpha.walletAddress };
+        saveDeal(dealWithAddr);
+        broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: dealWithAddr.pitchMessage, timestamp: new Date().toISOString() });
+        broadcast({ type: 'deal_update', deal: dealWithAddr, timestamp: new Date().toISOString() });
+        return { alpha, deal: dealWithAddr };
+      });
+
+      const pitches = await Promise.all(pitchPromises);
+
+      // 4. Beta analyzes each pitch in parallel
+      broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Analyzing ${pitches.length} competing pitch${pitches.length > 1 ? 'es' : ''}...`, timestamp: new Date().toISOString() });
+
+      const analysisPromises = pitches.map(async ({ alpha, deal }) => {
+        const analyzed = await beta.analyzeDeal(deal, betaBalance);
+        saveDeal(analyzed);
+        if (analyzed.analysisResult) {
+          broadcast({ type: 'analysis_update', deal: analyzed, timestamp: new Date().toISOString() });
+        }
+        const decisionEmoji = analyzed.decision === 'accept' ? '✅' : analyzed.decision === 'counter' ? '🔄' : '❌';
+        broadcast({
+          type: 'agent_message', agentId: beta.id, agentName: beta.name,
+          message: `${decisionEmoji} ${alpha.name}: ${analyzed.decisionReasoning}`,
+          timestamp: new Date().toISOString(),
+        });
+        const alphaMemory = getAgentMemory(alpha.id);
+        const repScore = computeReputationScore(alphaMemory);
+        return { alpha, deal: analyzed, overallScore: analyzed.analysisResult?.overallScore ?? 0, repScore };
+      });
+
+      const results = await Promise.all(analysisPromises);
+
+      // 5. Proportional capital allocation: weight = analysisScore(60%) + reputationScore(40%)
+      const accepted = results.filter(r => r.deal.decision === 'accept' && r.deal.investmentAmount);
+
+      if (accepted.length === 0) {
+        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: 'No deals met the acceptance threshold this round.', timestamp: new Date().toISOString() });
+        res.json(results.map(r => r.deal));
+        return;
+      }
+
+      // Compute weighted allocation scores
+      const weighted = accepted.map(r => ({
+        ...r,
+        allocScore: (r.overallScore * 0.6) + (r.repScore * 0.4),
+      }));
+      const totalAllocScore = weighted.reduce((s, r) => s + r.allocScore, 0);
+      const maxBudget = Math.min(parseFloat(betaBalance) * 0.4, 0.002); // max 40% of balance, capped at 0.002 XETH
+
+      const allocations = weighted.map(r => ({
+        ...r,
+        allocatedAmount: maxBudget * (r.allocScore / totalAllocScore),
+      }));
+
+      // Broadcast allocation breakdown
+      const allocMsg = allocations.map(r =>
+        `${r.alpha.name}: ${(r.allocScore).toFixed(0)} score → ${(r.allocScore / totalAllocScore * 100).toFixed(0)}% allocation (${r.allocatedAmount.toFixed(5)} XETH)`
+      ).join(' | ');
+      broadcast({
+        type: 'agent_message', agentId: beta.id, agentName: beta.name,
+        message: `💰 Capital allocation: ${allocMsg}`,
         timestamp: new Date().toISOString(),
       });
-      broadcast({ type: 'deal_update', deal, timestamp: new Date().toISOString() });
 
-      // 5. Execute if accepted
-      if (deal.decision === 'accept' && deal.investmentAmount) {
-        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing deal on XLayer — investing ${deal.investmentAmount} XETH...`, timestamp: new Date().toISOString() });
+      // 6. Execute all accepted deals
+      const finalDeals: Deal[] = [];
+      for (const r of allocations) {
+        const dealToExec = { ...r.deal, investmentAmount: Math.min(r.allocatedAmount, 0.001) };
+        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing ${r.alpha.name}'s deal on XLayer...`, timestamp: new Date().toISOString() });
 
-        deal = { ...deal, status: 'executing' };
-        saveDeal(deal);
-        broadcast({ type: 'deal_update', deal, timestamp: new Date().toISOString() });
+        const executed = await executeDeal(dealToExec, beta.privateKey, beta.walletAddress, r.alpha.walletAddress);
+        saveDeal(executed);
 
-        deal = await executeDeal(deal, beta.privateKey, beta.walletAddress, alpha.walletAddress);
-        saveDeal(deal);
-
-        if (deal.txHash) {
-          broadcast({
-            type: 'deal_executed',
-            deal,
-            message: `Deal executed on XLayer! TX: ${deal.txHash}`,
-            timestamp: new Date().toISOString(),
-          });
-
-          // 6. Broadcast 3% fee payment to Alpha
-          if (deal.alphaFeeTxHash) {
-            const feeXETH = (deal.alphaFeeAmount || 0).toFixed(6);
+        if (executed.txHash) {
+          broadcast({ type: 'deal_executed', deal: executed, message: `${r.alpha.name} deal executed! TX: ${executed.txHash}`, timestamp: new Date().toISOString() });
+          if (executed.alphaFeeTxHash) {
+            const feeXETH = (executed.alphaFeeAmount || 0).toFixed(6);
             broadcast({
-              type: 'agent_message',
-              agentId: beta.id,
-              agentName: beta.name,
-              message: `💸 Paid ${feeXETH} XETH performance fee (3%) to Agent Alpha. TX: ${deal.alphaFeeTxHash}`,
+              type: 'agent_message', agentId: beta.id, agentName: beta.name,
+              message: `💸 Paid ${feeXETH} XETH (3% fee) to ${r.alpha.name}. TX: ${executed.alphaFeeTxHash}`,
               timestamp: new Date().toISOString(),
             });
           }
-        } else {
-          broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: 'Execution failed. Will retry in next round.', timestamp: new Date().toISOString() });
         }
+        finalDeals.push(executed);
       }
 
-      res.json(deal);
+      // Include rejected deals in response too
+      const rejectedDeals = results.filter(r => r.deal.decision !== 'accept').map(r => r.deal);
+      res.json([...finalDeals, ...rejectedDeals]);
+
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       broadcast({ type: 'error', message, timestamp: new Date().toISOString() });

@@ -9,6 +9,7 @@ import { createAgentRoutes } from './routes/agents';
 import { createDealRoutes } from './routes/deals';
 import { createLearningRoutes } from './routes/learning';
 import { WSMessage } from './types';
+import { ALPHA_AGENTS } from './utils/constants';
 
 const app = express();
 const server = http.createServer(app);
@@ -17,9 +18,15 @@ const wss = new WebSocketServer({ server });
 app.use(cors());
 app.use(express.json());
 
-// Init agents
-const alpha = new AlphaAgent(process.env.AGENT_ALPHA_PRIVATE_KEY || '');
+// Init Beta agent
 const beta = new BetaAgent(process.env.AGENT_BETA_PRIVATE_KEY || '');
+
+// Init 3 competing Alpha agents — all share the same private key for demo
+// In production each would have their own wallet
+const alphaPrivateKey = process.env.AGENT_ALPHA_PRIVATE_KEY || '';
+const alphas = ALPHA_AGENTS.map(cfg =>
+  new AlphaAgent(alphaPrivateKey, cfg.id, cfg.name, cfg.role, cfg.pitchStyle)
+);
 
 // WebSocket broadcast
 function broadcast(msg: WSMessage) {
@@ -37,8 +44,8 @@ wss.on('connection', (ws) => {
 });
 
 // Routes
-app.use('/api/agents', createAgentRoutes(alpha, beta));
-app.use('/api/deals', createDealRoutes(alpha, beta, broadcast));
+app.use('/api/agents', createAgentRoutes(alphas, beta));
+app.use('/api/deals', createDealRoutes(alphas, beta, broadcast));
 app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -46,14 +53,15 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date()
 const PORT = process.env.PORT || 3001;
 
 async function start() {
-  await alpha.init();
-  await beta.init();
-  console.log(`Agent Alpha wallet: ${alpha.walletAddress}`);
-  console.log(`Agent Beta wallet:  ${beta.walletAddress}`);
+  await Promise.all([...alphas.map(a => a.init()), beta.init()]);
+
+  console.log(`Agent Beta wallet:   ${beta.walletAddress}`);
+  alphas.forEach(a => console.log(`${a.name} wallet: ${a.walletAddress}`));
 
   server.listen(PORT, () => {
     console.log(`SmartLayer backend running on http://localhost:${PORT}`);
     console.log(`WebSocket server ready on ws://localhost:${PORT}`);
+    console.log(`${alphas.length} Alpha agents ready to compete`);
   });
 }
 
