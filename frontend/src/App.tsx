@@ -6,8 +6,9 @@ import ChatWindow from './components/ChatWindow';
 import DealAnalysis from './components/DealAnalysis';
 import LearningPanel from './components/LearningPanel';
 import DepositModal from './components/DepositModal';
+import Leaderboard from './components/Leaderboard';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard } from './services/api';
 
 interface AgentState {
   id: string;
@@ -20,6 +21,9 @@ interface AgentState {
     dealsAccepted: unknown[];
     dealsReceived: unknown[];
     dealsRejected: unknown[];
+    riskProfile?: 'conservative' | 'balanced' | 'aggressive';
+    reputationScore?: number;
+    totalFeesEarned?: number;
   };
 }
 
@@ -34,6 +38,7 @@ export default function App() {
   const [activeAlpha, setActiveAlpha] = useState(false);
   const [activeBeta, setActiveBeta] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
   const { isConnected } = useAccount();
 
@@ -63,9 +68,17 @@ export default function App() {
     } catch {}
   }
 
+  async function loadLeaderboard() {
+    try {
+      const data = await getLeaderboard();
+      setLeaderboard(data);
+    } catch {}
+  }
+
   useEffect(() => {
     loadAgents();
-    const interval = setInterval(loadAgents, 10000);
+    loadLeaderboard();
+    const interval = setInterval(() => { loadAgents(); loadLeaderboard(); }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -74,7 +87,7 @@ export default function App() {
     setActiveAlpha(true);
     try {
       await startDealRound();
-      await loadAgents();
+      await Promise.all([loadAgents(), loadLeaderboard()]);
     } finally {
       setIsRunning(false);
       setActiveAlpha(false);
@@ -225,6 +238,8 @@ export default function App() {
             successRate={alphaPitched > 0 ? Math.round((alphaAccepts / alphaPitched) * 100) : 0}
             isActive={activeAlpha}
             side="alpha"
+            reputationScore={leaderboard[0]?.reputationScore}
+            totalFeesEarned={leaderboard[0]?.totalFeesEarned}
           />
           <div className="flex flex-col items-center justify-center px-2 gap-2">
             <div className="text-purple-400 text-xs font-medium text-center">Pitches deal</div>
@@ -242,6 +257,7 @@ export default function App() {
             acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
             isActive={activeBeta}
             side="beta"
+            riskProfile={beta?.memory?.riskProfile}
           />
         </div>
 
@@ -288,6 +304,9 @@ export default function App() {
           onRunLearning={handleRunLearning}
           isRunning={isLearning}
         />
+
+        {/* Alpha Leaderboard */}
+        <Leaderboard entries={leaderboard} />
       </main>
 
       <footer className="border-t border-gray-800 mt-12 py-6 text-center text-gray-600 text-xs">

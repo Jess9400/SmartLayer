@@ -2,6 +2,49 @@ import fs from 'fs';
 import path from 'path';
 import { Deal, AgentMemory } from '../types';
 
+export function computeReputationScore(memory: AgentMemory): number {
+  const totalPitched = memory.dealsPitched.length;
+  if (totalPitched === 0) return 0;
+
+  const accepted = memory.dealsPitched.filter(d => d.decision === 'accept').length;
+  const winRate = accepted / totalPitched; // 0-1
+
+  // Avg APY of accepted deals (quality of pitches)
+  const acceptedDeals = memory.dealsPitched.filter(d => d.decision === 'accept');
+  const avgApy = acceptedDeals.length > 0
+    ? acceptedDeals.reduce((sum, d) => sum + d.apy, 0) / acceptedDeals.length
+    : 0;
+
+  // Volume score: more deals = more track record (capped at 20)
+  const volumeScore = Math.min(totalPitched, 20) / 20;
+
+  // Recency score: any deal in last 10 rounds gets a boost
+  const recentAccepted = memory.dealsPitched.slice(-10).filter(d => d.decision === 'accept').length;
+  const recencyScore = recentAccepted / Math.min(memory.dealsPitched.slice(-10).length, 10);
+
+  const score = Math.round(
+    (winRate * 50) +           // 50 pts: win rate
+    (volumeScore * 25) +       // 25 pts: deal volume
+    (Math.min(avgApy, 20) / 20 * 15) + // 15 pts: APY quality
+    (recencyScore * 10)        // 10 pts: recent activity
+  );
+
+  return Math.min(score, 100);
+}
+
+export function computeRiskProfile(memory: AgentMemory): 'conservative' | 'balanced' | 'aggressive' {
+  const accepted = memory.dealsAccepted;
+  if (accepted.length === 0) return 'conservative';
+
+  const avgApy = accepted.reduce((sum, d) => sum + d.apy, 0) / accepted.length;
+  const highRiskCount = accepted.filter(d => d.riskLevel === 'high').length;
+  const highRiskRatio = highRiskCount / accepted.length;
+
+  if (avgApy > 20 || highRiskRatio > 0.5) return 'aggressive';
+  if (avgApy > 10 || highRiskRatio > 0.2) return 'balanced';
+  return 'conservative';
+}
+
 const MEMORY_FILE = path.join(__dirname, '../../data/memory.json');
 
 interface MemoryStore {
@@ -102,11 +145,55 @@ export function saveDeal(deal: Deal): void {
     else receiver.dealsRejected.push(deal);
   }
 
+  // Update Alpha reputation score after every deal decision
+  pitcher.reputationScore = computeReputationScore(pitcher);
+  const totalFees = pitcher.dealsPitched
+    .filter(d => d.alphaFeeAmount)
+    .reduce((sum, d) => sum + (d.alphaFeeAmount || 0), 0);
+  pitcher.totalFeesEarned = totalFees;
+
+  // Update Beta risk profile after every accepted/rejected deal
+  if (deal.decision === 'accept' || deal.decision === 'reject') {
+    receiver.riskProfile = computeRiskProfile(receiver);
+  }
+
   save(store);
 }
 
 export function getAllDeals(): Deal[] {
   return load().deals;
+}
+
+export interface LeaderboardEntry {
+  agentId: string;
+  reputationScore: number;
+  totalPitched: number;
+  totalAccepted: number;
+  winRate: number;
+  avgApy: number;
+  totalFeesEarned: number;
+}
+
+export function getAlphaLeaderboard(): LeaderboardEntry[] {
+  const store = load();
+  return Object.values(store.agents)
+    .filter(a => a.dealsPitched.length > 0)
+    .map(a => {
+      const accepted = a.dealsPitched.filter(d => d.decision === 'accept');
+      const avgApy = accepted.length > 0
+        ? accepted.reduce((sum, d) => sum + d.apy, 0) / accepted.length
+        : 0;
+      return {
+        agentId: a.agentId,
+        reputationScore: a.reputationScore ?? computeReputationScore(a),
+        totalPitched: a.dealsPitched.length,
+        totalAccepted: accepted.length,
+        winRate: a.dealsPitched.length > 0 ? Math.round((accepted.length / a.dealsPitched.length) * 100) : 0,
+        avgApy: Math.round(avgApy * 10) / 10,
+        totalFeesEarned: a.totalFeesEarned ?? 0,
+      };
+    })
+    .sort((a, b) => b.reputationScore - a.reputationScore);
 }
 
 export function updateAgentMemory(agentId: string, updates: Partial<AgentMemory>): void {

@@ -29,3 +29,8 @@ export async function getPatterns() {
   const res = await fetch(`${BASE}/learning/patterns`);
   return res.json();
 }
+
+export async function getLeaderboard() {
+  const res = await fetch(`${BASE}/deals/leaderboard`);
+  return res.json();
+}

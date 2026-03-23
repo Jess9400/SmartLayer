@@ -11,9 +11,12 @@ interface AgentCardProps {
   successRate?: number;
   isActive?: boolean;
   side: 'alpha' | 'beta';
+  reputationScore?: number;
+  riskProfile?: 'conservative' | 'balanced' | 'aggressive';
+  totalFeesEarned?: number;
 }
 
-export default function AgentCard({ name, role, balance, walletAddress, dealsPitched, dealsAnalyzed, acceptRate, successRate, isActive, side }: AgentCardProps) {
+export default function AgentCard({ name, role, balance, walletAddress, dealsPitched, dealsAnalyzed, acceptRate, successRate, isActive, side, reputationScore, riskProfile, totalFeesEarned }: AgentCardProps) {
   const shortAddr = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : 'loading...';
@@ -44,6 +47,22 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
           Pitching deals to your agent
         </div>
 
+        {/* Reputation Score */}
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs text-gray-400">Reputation Score</span>
+            <span className={`text-xs font-bold ${(reputationScore ?? 0) >= 70 ? 'text-green-400' : (reputationScore ?? 0) >= 40 ? 'text-yellow-400' : 'text-gray-400'}`}>
+              {reputationScore ?? 0}/100
+            </span>
+          </div>
+          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${(reputationScore ?? 0) >= 70 ? 'bg-green-500' : (reputationScore ?? 0) >= 40 ? 'bg-yellow-500' : 'bg-gray-500'}`}
+              style={{ width: `${reputationScore ?? 0}%` }}
+            />
+          </div>
+        </div>
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-400">Balance</span>
@@ -61,6 +80,12 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
             <span className="text-gray-400">Acceptance Rate</span>
             <span className="font-bold text-white">{successRate ?? 0}%</span>
           </div>
+          {(totalFeesEarned ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">Fees Earned</span>
+              <span className="font-bold text-yellow-400">{(totalFeesEarned ?? 0).toFixed(6)} XETH</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -90,8 +115,19 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
         </div>
       </div>
 
-      <div className="text-xs text-green-400/80 bg-green-500/10 rounded-lg px-3 py-2 mb-3 border border-green-500/20 flex items-center gap-1.5">
-        <span>💰</span> Managing your delegated capital
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="text-xs text-green-400/80 bg-green-500/10 rounded-lg px-3 py-2 border border-green-500/20 flex items-center gap-1.5 flex-1">
+          <span>💰</span> Managing your delegated capital
+        </div>
+        {riskProfile && (
+          <div className={`text-xs font-bold px-2 py-1 rounded-lg border shrink-0 ${
+            riskProfile === 'aggressive' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+            riskProfile === 'balanced' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' :
+            'bg-blue-500/10 text-blue-400 border-blue-500/30'
+          }`}>
+            {riskProfile === 'aggressive' ? '🔥' : riskProfile === 'balanced' ? '⚖️' : '🛡️'} {riskProfile}
+          </div>
+        )}
       </div>
 
       <div className="space-y-2 text-sm">

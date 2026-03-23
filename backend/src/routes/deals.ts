@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
-import { saveDeal, getAllDeals } from '../memory/store';
+import { saveDeal, getAllDeals, getAlphaLeaderboard } from '../memory/store';
 import { getYieldOpportunities } from '../services/defillama';
 import { WSMessage } from '../types';
 import { WebSocket } from 'ws';
@@ -19,6 +19,11 @@ export function createDealRoutes(
     res.json(getAllDeals());
   });
 
+  // Alpha leaderboard
+  router.get('/leaderboard', (_req: Request, res: Response) => {
+    res.json(getAlphaLeaderboard());
+  });
+
   // Discover yield opportunities
   router.get('/opportunities', async (_req: Request, res: Response) => {
     try {
@@ -29,7 +34,7 @@ export function createDealRoutes(
     }
   });
 
-  // Full deal round: discover → pitch → analyze → decide → (execute)
+  // Full deal round: discover → pitch → analyze → decide → execute → fee
   router.post('/round', async (_req: Request, res: Response) => {
     try {
       // 1. Discover
@@ -43,6 +48,7 @@ export function createDealRoutes(
       broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: 'Crafting pitch for Agent Beta...', timestamp: new Date().toISOString() });
       const alphaBalance = await alpha.getBalance();
       let deal = await alpha.generatePitch(opportunity, alphaBalance);
+      deal = { ...deal, pitcherAddress: alpha.walletAddress };
       saveDeal(deal);
 
       broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: deal.pitchMessage, timestamp: new Date().toISOString() });
@@ -71,22 +77,34 @@ export function createDealRoutes(
 
       // 5. Execute if accepted
       if (deal.decision === 'accept' && deal.investmentAmount) {
-        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing deal on XLayer — investing $${deal.investmentAmount} USDC...`, timestamp: new Date().toISOString() });
+        broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing deal on XLayer — investing ${deal.investmentAmount} XETH...`, timestamp: new Date().toISOString() });
 
         deal = { ...deal, status: 'executing' };
         saveDeal(deal);
         broadcast({ type: 'deal_update', deal, timestamp: new Date().toISOString() });
 
-        deal = await executeDeal(deal, beta.privateKey, beta.walletAddress);
+        deal = await executeDeal(deal, beta.privateKey, beta.walletAddress, alpha.walletAddress);
         saveDeal(deal);
 
         if (deal.txHash) {
           broadcast({
             type: 'deal_executed',
             deal,
-            message: `Deal executed! TX: ${deal.txHash}`,
+            message: `Deal executed on XLayer! TX: ${deal.txHash}`,
             timestamp: new Date().toISOString(),
           });
+
+          // 6. Broadcast 3% fee payment to Alpha
+          if (deal.alphaFeeTxHash) {
+            const feeXETH = (deal.alphaFeeAmount || 0).toFixed(6);
+            broadcast({
+              type: 'agent_message',
+              agentId: beta.id,
+              agentName: beta.name,
+              message: `💸 Paid ${feeXETH} XETH performance fee (3%) to Agent Alpha. TX: ${deal.alphaFeeTxHash}`,
+              timestamp: new Date().toISOString(),
+            });
+          }
         } else {
           broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: 'Execution failed. Will retry in next round.', timestamp: new Date().toISOString() });
         }

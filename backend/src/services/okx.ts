@@ -122,6 +122,26 @@ export async function executeNativeTransfer(privateKey: string, amountWei: strin
   }
 }
 
+// Send native ETH to a specific address (used for Alpha 3% performance fee)
+export async function transferToAddress(privateKey: string, toAddress: string, amountWei: string): Promise<string | null> {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const wallet = new ethers.Wallet(privateKey, provider);
+
+    const tx = await wallet.sendTransaction({
+      to: toAddress,
+      value: BigInt(amountWei),
+      gasLimit: 21000n,
+    });
+
+    const receipt = await tx.wait();
+    return receipt?.hash || null;
+  } catch (err) {
+    console.error('Transfer to address error:', err);
+    return null;
+  }
+}
+
 export async function getAgentAddress(privateKey: string): Promise<string> {
   const wallet = new ethers.Wallet(privateKey);
   return wallet.address;

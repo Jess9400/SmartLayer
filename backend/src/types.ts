@@ -43,6 +43,7 @@ export interface Deal {
 
   // Pitch
   pitcherId: string;
+  pitcherAddress?: string;
   pitchMessage: string;
   suggestedAmount: number;
   confidence: number;
@@ -60,6 +61,10 @@ export interface Deal {
   // Execution
   executed: boolean;
   txHash?: string;
+
+  // Alpha 3% performance fee
+  alphaFeeAmount?: number;
+  alphaFeeTxHash?: string;
 
   // Outcome
   status: 'pitching' | 'analyzing' | 'decided' | 'executing' | 'active' | 'completed' | 'failed';
@@ -92,6 +97,11 @@ export interface AgentMemory {
     winRate: number;
     avgApy: number;
   };
+  // Alpha agent reputation (computed from on-chain track record)
+  reputationScore?: number;
+  totalFeesEarned?: number;
+  // Beta agent risk profile (learned from deal history)
+  riskProfile?: 'conservative' | 'balanced' | 'aggressive';
 }
 
 export interface AgentState {
