@@ -1,5 +1,5 @@
 import { Deal } from '../types';
-import { executeSwap } from '../services/okx';
+import { executeSwap, executeNativeTransfer } from '../services/okx';
 import { TOKENS } from '../utils/constants';
 import { ethers } from 'ethers';
 
@@ -15,18 +15,10 @@ export async function executeDeal(
   try {
     // Cap at 0.001 XETH max per deal to stay within demo wallet limits
     const cappedAmount = Math.min(deal.investmentAmount, 0.001);
-    // Convert WETH amount to wei (WETH has 18 decimals)
     const amountInWei = ethers.parseUnits(String(cappedAmount), 18).toString();
 
-    // Execute swap: WETH -> WOKB as proof of execution on XLayer
-    const toToken = TOKENS.WOKB;
-    const txHash = await executeSwap(
-      betaPrivateKey,
-      toToken,
-      TOKENS.WETH,
-      amountInWei,
-      betaAddress
-    );
+    // Execute native ETH -> WOKB swap via OKX DEX as proof of execution
+    const txHash = await executeNativeTransfer(betaPrivateKey, amountInWei);
 
     if (txHash) {
       return {

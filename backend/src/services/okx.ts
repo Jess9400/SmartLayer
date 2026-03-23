@@ -28,12 +28,20 @@ const ERC20_ABI = ['function balanceOf(address owner) view returns (uint256)', '
 export async function getWalletBalance(address: string, tokenAddress: string): Promise<string> {
   try {
     const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+
+    // Try native ETH balance first
+    const nativeBalance = await provider.getBalance(address);
+    if (nativeBalance > 0n) {
+      return ethers.formatEther(nativeBalance);
+    }
+
+    // Fall back to ERC20 (WETH)
     const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
     const [balance, decimals] = await Promise.all([token.balanceOf(address), token.decimals()]);
     return ethers.formatUnits(balance, decimals);
   } catch (err) {
     console.error('Balance fetch error:', err);
-    return '500'; // Demo fallback
+    return '0';
   }
 }
 
@@ -90,6 +98,26 @@ export async function executeSwap(
     return receipt?.hash || null;
   } catch (err) {
     console.error('OKX execute swap error:', err);
+    return null;
+  }
+}
+
+// Execute a native ETH self-transfer as on-chain proof of deal execution
+export async function executeNativeTransfer(privateKey: string, amountWei: string): Promise<string | null> {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const wallet = new ethers.Wallet(privateKey, provider);
+
+    const tx = await wallet.sendTransaction({
+      to: wallet.address, // self-transfer as proof of execution
+      value: BigInt(amountWei),
+      gasLimit: 21000n,
+    });
+
+    const receipt = await tx.wait();
+    return receipt?.hash || null;
+  } catch (err) {
+    console.error('Native transfer error:', err);
     return null;
   }
 }
