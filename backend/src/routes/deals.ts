@@ -159,7 +159,7 @@ export function createDealRoutes(
         saveDeal(executed);
 
         if (executed.txHash) {
-          broadcast({ type: 'deal_executed', deal: executed, message: `${r.alpha.name} deal executed! TX: ${executed.txHash}`, timestamp: new Date().toISOString() });
+          broadcast({ type: 'deal_executed', agentId: r.alpha.id, agentName: r.alpha.name, deal: executed, message: `${r.alpha.name} deal executed! TX: ${executed.txHash}`, timestamp: new Date().toISOString() });
           if (executed.alphaFeeTxHash) {
             const feeXETH = (executed.alphaFeeAmount || 0).toFixed(6);
             broadcast({

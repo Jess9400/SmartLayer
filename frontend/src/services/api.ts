@@ -54,6 +54,11 @@ export async function subscribeToAlpha(alphaId: string) {
   return res.json();
 }
 
+export async function getVaultBalance() {
+  const res = await fetch(`${BASE}/vault/balance`);
+  return res.json();
+}
+
 export async function unsubscribeFromAlpha(alphaId: string) {
   const res = await fetch(`${BASE}/agents/unsubscribe`, {
     method: 'POST',

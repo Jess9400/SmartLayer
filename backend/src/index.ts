@@ -52,6 +52,15 @@ app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.get('/api/vault/balance', async (_req, res) => {
+  try {
+    const balance = await getVaultBalance(beta.walletAddress);
+    res.json({ vaultBalance: balance, address: beta.walletAddress });
+  } catch {
+    res.json({ vaultBalance: '0' });
+  }
+});
+
 // Debug: check vault state on-chain
 app.get('/api/vault/debug', async (_req, res) => {
   try {

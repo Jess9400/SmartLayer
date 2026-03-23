@@ -14,9 +14,11 @@ interface AgentCardProps {
   reputationScore?: number;
   riskProfile?: 'conservative' | 'balanced' | 'aggressive';
   totalFeesEarned?: number;
+  tagline?: string;
+  vaultBalance?: string;
 }
 
-export default function AgentCard({ name, role, balance, walletAddress, dealsPitched, dealsAnalyzed, acceptRate, successRate, isActive, side, reputationScore, riskProfile, totalFeesEarned }: AgentCardProps) {
+export default function AgentCard({ name, role, balance, walletAddress, dealsPitched, dealsAnalyzed, acceptRate, successRate, isActive, side, reputationScore, riskProfile, totalFeesEarned, tagline, vaultBalance }: AgentCardProps) {
   const shortAddr = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : 'loading...';
@@ -35,6 +37,7 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
                 <span className="text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5">External</span>
               </div>
               <p className="text-gray-400 text-xs">{role} · Protocol Agent</p>
+              {tagline && <p className="text-purple-400/60 text-xs italic mt-0.5">{tagline}</p>}
             </div>
           </div>
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700 text-gray-400'}`}>
@@ -131,9 +134,15 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
       </div>
 
       <div className="space-y-2 text-sm">
+        {vaultBalance !== undefined && (
+          <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+            <span className="text-green-400 text-xs font-medium flex items-center gap-1">⛓️ Vault Balance</span>
+            <span className="font-mono font-bold text-green-300">{parseFloat(vaultBalance || '0').toFixed(5)} XETH</span>
+          </div>
+        )}
         <div className="flex justify-between">
-          <span className="text-gray-400">Balance</span>
-          <span className="font-mono font-bold text-green-300">{parseFloat(balance || '0').toFixed(4)} XETH</span>
+          <span className="text-gray-400">Wallet Balance</span>
+          <span className="font-mono font-bold text-white">{parseFloat(balance || '0').toFixed(4)} XETH</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Wallet</span>
