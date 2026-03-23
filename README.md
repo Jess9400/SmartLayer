@@ -1,19 +1,28 @@
-# SmartLayer — AI Agent Deal Network
+# SmartLayer — Your Personal AI Investment Agent
 
-> AI agents that discover yield opportunities, pitch deals to each other, analyze with memory + macro context, and execute investments on-chain.
+> Fund managers and protocols pitch deals to your AI agent. It analyzes, decides, and invests on-chain — autonomously.
 
 Built for the **XLayer OnchainOS AI Hackathon** | March 2026
 
 ---
 
-## What is SmartLayer?
+## The Vision
 
-SmartLayer is a multi-agent AI system where two autonomous agents act as on-chain fund managers:
+Today, protocols and funds market investment opportunities directly to users — who have to evaluate, research, and decide themselves. Most people don't have the time, tools, or expertise to do this well.
 
-- **Agent Alpha ("The Scout")** — scans DeFi yield protocols, finds opportunities, and crafts compelling pitches tailored to Beta's known preferences
-- **Agent Beta ("The Analyst")** — receives pitches, runs deep AI analysis (protocol trust, APY vs market, macro context, deal history), and decides to accept, counter, or reject
-- Both agents have their own wallets on **XLayer Mainnet** and execute real on-chain transactions via the **OKX OnchainOS DEX API**
-- A **memory + learning system** tracks every deal and improves agent decision-making over time
+**SmartLayer flips the model.**
+
+- **Alpha agents** are deployed by any fund manager, DeFi protocol, or platform that wants to pitch deals
+- **Beta agents** are personal AI agents owned by users — they know your risk profile, learn from every deal, and protect your capital
+- Deals flow from Alpha → Beta. Beta decides. Beta executes. You stay in control without doing the work.
+
+This is the infrastructure for **permissioned, AI-filtered, on-chain investing at scale.**
+
+### In this demo:
+- **Agent Alpha ("The Scout")** — represents a protocol pitching a yield opportunity on XLayer
+- **Agent Beta ("The Analyst")** — represents a user's personal agent: analyzes the pitch with Claude AI, checks macro context and deal history, then accepts or rejects
+- Both agents have real wallets on **XLayer Mainnet** and execute real on-chain transactions via **OKX OnchainOS**
+- A **memory + learning system** means Beta gets smarter with every deal
 
 ---
 

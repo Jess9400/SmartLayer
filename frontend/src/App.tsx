@@ -125,28 +125,31 @@ export default function App() {
               </span>
             </div>
             <h1 className="text-4xl font-black text-white mb-4 leading-tight">
-              AI Agents That <span className="text-green-400">Pitch, Analyze</span><br />
-              and Invest On-Chain
+              Your Personal AI Agent<br />
+              <span className="text-green-400">Filters, Analyzes & Invests</span> For You
             </h1>
-            <p className="text-gray-400 text-lg mb-6 leading-relaxed">
-              SmartLayer deploys two autonomous AI agents with real wallets on XLayer. <strong className="text-gray-200">Agent Alpha</strong> scouts DeFi yield opportunities and pitches them. <strong className="text-gray-200">Agent Beta</strong> analyzes each deal using Claude AI, macro context, and memory of past performance — then executes real on-chain transactions.
+            <p className="text-gray-400 text-lg mb-3 leading-relaxed">
+              Fund managers, protocols, and platforms deploy <strong className="text-gray-200">Alpha agents</strong> to pitch investment opportunities. You have your own <strong className="text-gray-200">Beta agent</strong> — a personal AI gatekeeper that knows your risk profile, learns from every deal, and executes on-chain investments autonomously. You don't evaluate deals anymore. <strong className="text-green-400">Your agent does.</strong>
             </p>
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex items-center gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">1</span>
-                Alpha scans DeFiLlama for live yield opps
+            <p className="text-gray-500 text-sm mb-6">
+              Built on XLayer Mainnet · Powered by Claude AI · Executed via OKX OnchainOS
+            </p>
+            <div className="grid grid-cols-2 gap-3 text-sm max-w-xl">
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                <span>Any protocol or fund pitches deals via an Alpha agent</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">2</span>
-                Beta scores deals with Claude AI analysis
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                <span>Your Beta agent scores deals using AI, macro & history</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">3</span>
-                Accepted deals execute on XLayer mainnet
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                <span>Accepted deals execute on XLayer — real TX, real funds</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-400">
-                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">4</span>
-                Agents learn and improve from every deal
+              <div className="flex items-start gap-2 text-gray-400">
+                <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</span>
+                <span>Beta learns your preferences and gets smarter over time</span>
               </div>
             </div>
           </div>
