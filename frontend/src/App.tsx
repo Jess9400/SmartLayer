@@ -63,7 +63,11 @@ export default function App() {
     } catch {}
   }
 
-  useEffect(() => { loadAgents(); }, []);
+  useEffect(() => {
+    loadAgents();
+    const interval = setInterval(loadAgents, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleNewRound() {
     setIsRunning(true);
