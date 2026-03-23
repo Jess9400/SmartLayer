@@ -164,6 +164,37 @@ export default function App() {
               </div>
             </div>
 
+            {/* Flow diagram */}
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-2 text-sm">
+                <span>🏦</span>
+                <div>
+                  <div className="text-purple-300 font-semibold text-xs">Protocol / Fund</div>
+                  <div className="text-purple-400/70 text-xs">Alpha Agent</div>
+                </div>
+              </div>
+              <div className="text-gray-500 text-xs text-center">
+                <div>→ pitches deals →</div>
+              </div>
+              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2 text-sm">
+                <span>🛡️</span>
+                <div>
+                  <div className="text-green-300 font-semibold text-xs">Your Agent</div>
+                  <div className="text-green-400/70 text-xs">Beta Agent</div>
+                </div>
+              </div>
+              <div className="text-gray-500 text-xs text-center">
+                <div>→ executes on-chain →</div>
+              </div>
+              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-2 text-sm">
+                <span>⛓️</span>
+                <div>
+                  <div className="text-blue-300 font-semibold text-xs">XLayer</div>
+                  <div className="text-blue-400/70 text-xs">Real TX on-chain</div>
+                </div>
+              </div>
+            </div>
+
             {/* Delegate CTA */}
             {isConnected ? (
               <button
@@ -184,7 +215,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
         {/* Agent Cards */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-stretch">
           <AgentCard
             name={alpha?.name || 'Agent Alpha'}
             role={alpha?.role || 'Deal Scout'}
@@ -195,11 +226,12 @@ export default function App() {
             isActive={activeAlpha}
             side="alpha"
           />
-          <div className="flex items-center justify-center px-4">
-            <div className="text-center">
-              <div className="text-gray-500 text-2xl">⇄</div>
-              <div className="text-gray-600 text-xs mt-1">Negotiating</div>
-            </div>
+          <div className="flex flex-col items-center justify-center px-2 gap-2">
+            <div className="text-purple-400 text-xs font-medium text-center">Pitches deal</div>
+            <div className="text-gray-500 text-xl">→</div>
+            <div className="text-gray-600 text-xs">evaluates</div>
+            <div className="text-gray-500 text-xl">←</div>
+            <div className="text-green-400 text-xs font-medium text-center">Accept / Reject</div>
           </div>
           <AgentCard
             name={beta?.name || 'Agent Beta'}
