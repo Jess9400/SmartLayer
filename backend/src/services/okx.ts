@@ -23,20 +23,16 @@ function getHeaders(method: string, path: string, body: string = '') {
   };
 }
 
+const ERC20_ABI = ['function balanceOf(address owner) view returns (uint256)', 'function decimals() view returns (uint8)'];
+
 export async function getWalletBalance(address: string, tokenAddress: string): Promise<string> {
   try {
-    const path = `/api/v5/wallet/asset/token-balances-by-address?address=${address}&chainIndex=${XLAYER_CHAIN_ID}&tokenContractAddress=${tokenAddress}`;
-    const { data } = await axios.get(OKX_BASE_URL + path, {
-      headers: getHeaders('GET', path),
-      timeout: 10000,
-    });
-
-    if (data.code === '0' && data.data?.[0]?.tokenAssets?.[0]) {
-      return data.data[0].tokenAssets[0].balance;
-    }
-    return '0';
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+    const [balance, decimals] = await Promise.all([token.balanceOf(address), token.decimals()]);
+    return ethers.formatUnits(balance, decimals);
   } catch (err) {
-    console.error('OKX balance error:', err);
+    console.error('Balance fetch error:', err);
     return '500'; // Demo fallback
   }
 }
