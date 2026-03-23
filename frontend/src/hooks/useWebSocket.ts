@@ -17,9 +17,9 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   onMessageRef.current = onMessage;
 
   const connect = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const ws = new WebSocket(`${protocol}//${host}:3001`);
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const wsUrl = apiUrl.replace(/^http/, 'ws');
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => setConnected(true);
     ws.onclose = () => {
