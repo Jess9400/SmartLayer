@@ -25,20 +25,11 @@ function getHeaders(method: string, path: string, body: string = '') {
 
 const ERC20_ABI = ['function balanceOf(address owner) view returns (uint256)', 'function decimals() view returns (uint8)'];
 
-export async function getWalletBalance(address: string, tokenAddress: string): Promise<string> {
+export async function getWalletBalance(address: string, _tokenAddress: string): Promise<string> {
   try {
     const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
-
-    // Try native ETH balance first
     const nativeBalance = await provider.getBalance(address);
-    if (nativeBalance > 0n) {
-      return ethers.formatEther(nativeBalance);
-    }
-
-    // Fall back to ERC20 (WETH)
-    const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-    const [balance, decimals] = await Promise.all([token.balanceOf(address), token.decimals()]);
-    return ethers.formatUnits(balance, decimals);
+    return ethers.formatEther(nativeBalance);
   } catch (err) {
     console.error('Balance fetch error:', err);
     return '0';

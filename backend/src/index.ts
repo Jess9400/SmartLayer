@@ -10,6 +10,8 @@ import { createDealRoutes } from './routes/deals';
 import { createLearningRoutes } from './routes/learning';
 import { WSMessage } from './types';
 import { ALPHA_AGENTS } from './utils/constants';
+import { contractsConfigured, setupVaultDemo, toBytes32, getVaultBalance } from './services/contracts';
+import { ethers } from 'ethers';
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +52,64 @@ app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// Debug: check vault state on-chain
+app.get('/api/vault/debug', async (_req, res) => {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC!);
+    const VAULT_ABI = ['function getBalance(address) view returns (uint256)', 'function getBetaAgent(address) view returns (address)'];
+    const REGISTRY_ABI = ['function getFeeAddress(bytes32) view returns (address)', 'function getAlphaCount() view returns (uint256)'];
+    const REP_ABI = ['function authorized(address) view returns (bool)'];
+    const vault = new ethers.Contract(process.env.CONTRACT_VAULT!, VAULT_ABI, provider);
+    const registry = new ethers.Contract(process.env.CONTRACT_AGENT_REGISTRY!, REGISTRY_ABI, provider);
+    const rep = new ethers.Contract(process.env.CONTRACT_REPUTATION_REGISTRY!, REP_ABI, provider);
+
+    const betaAddr = beta.walletAddress;
+    const vaultAddr = process.env.CONTRACT_VAULT!;
+    const [vaultBal, assignedAgent, alphaCount, vaultAuthorized] = await Promise.all([
+      vault.getBalance(betaAddr),
+      vault.getBetaAgent(betaAddr),
+      registry.getAlphaCount(),
+      rep.authorized(vaultAddr),
+    ]);
+
+    const feeAddrs: Record<string, string> = {};
+    for (const id of ['agent-alpha-nexus', 'agent-alpha-citadel', 'agent-alpha-quant']) {
+      feeAddrs[id] = await registry.getFeeAddress(toBytes32(id));
+    }
+
+    // Simulate vault.execute as Beta wallet to get exact revert reason
+    const VAULT_FULL_ABI = ['function execute(address user, bytes32 alphaId, address destination, uint256 amount, uint256 apyBps) external'];
+    const betaSigner = new ethers.Wallet(process.env.AGENT_BETA_PRIVATE_KEY!, provider);
+    const vaultSim = new ethers.Contract(process.env.CONTRACT_VAULT!, VAULT_FULL_ABI, betaSigner);
+    const testAmount = ethers.parseEther('0.0001');
+    let simulationResult: string;
+    try {
+      await vaultSim.execute.staticCall(
+        betaAddr,
+        toBytes32('agent-alpha-quant'),
+        betaAddr,
+        testAmount,
+        1500
+      );
+      simulationResult = 'SUCCESS';
+    } catch (e: any) {
+      simulationResult = e.message || String(e);
+    }
+
+    res.json({
+      betaAddress: betaAddr,
+      vaultBalance: ethers.formatEther(vaultBal),
+      assignedAgent,
+      alphaCountInRegistry: Number(alphaCount),
+      vaultAuthorizedInReputation: vaultAuthorized,
+      feeAddresses: feeAddrs,
+      simulatedExecute: simulationResult,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Expose contract addresses to frontend
 app.get('/api/contracts', (_req, res) => {
   res.json({
@@ -66,6 +126,12 @@ async function start() {
   await Promise.all([...alphas.map(a => a.init()), beta.init()]);
 
   console.log(`Agent Beta wallet:   ${beta.walletAddress}`);
+
+  // Auto-setup vault for demo (deposit + assignAgent) if contracts are configured
+  if (contractsConfigured()) {
+    setupVaultDemo(beta.privateKey, beta.walletAddress)
+      .catch(e => console.warn('[vault] Setup warning:', e.message));
+  }
   alphas.forEach(a => console.log(`${a.name} wallet: ${a.walletAddress}`));
 
   server.listen(PORT, () => {

@@ -16,8 +16,8 @@ export async function executeDeal(
     throw new Error('Deal was not accepted or has no investment amount');
   }
 
-  const cappedAmount = Math.min(deal.investmentAmount, 0.001);
-  const amountWei = ethers.parseUnits(String(cappedAmount), 18);
+  const cappedAmount = parseFloat(Math.min(deal.investmentAmount, 0.001).toFixed(8));
+  const amountWei = ethers.parseUnits(cappedAmount.toFixed(8), 18);
   const apyBps = Math.round(deal.apy * 100); // e.g. 15.5% → 1550
 
   try {

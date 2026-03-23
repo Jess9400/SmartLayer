@@ -109,7 +109,7 @@ export default function DealAnalysis({ deal }: DealAnalysisProps) {
         <div className={`rounded-lg border p-3 ${decisionBg}`}>
           <div className={`font-bold text-sm ${decisionColor} mb-1`}>
             {decisionIcon} {deal.decision.toUpperCase()}
-            {deal.investmentAmount && ` — $${deal.investmentAmount} USDC`}
+            {deal.investmentAmount && ` — ${deal.investmentAmount.toFixed(5)} XETH`}
           </div>
           <p className="text-gray-300 text-xs">{deal.decisionReasoning}</p>
           {deal.txHash && (

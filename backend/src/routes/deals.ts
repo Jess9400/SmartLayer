@@ -101,7 +101,8 @@ export function createDealRoutes(
       const results = await Promise.all(analysisPromises);
 
       // 5. Record rejected deals on-chain (fire-and-forget)
-      const operatorKey = process.env.AGENT_BETA_PRIVATE_KEY!;
+      // Alpha wallet is the deployer/owner of ReputationRegistry
+      const operatorKey = process.env.AGENT_ALPHA_PRIVATE_KEY!;
       if (contractsConfigured()) {
         for (const r of results) {
           if (r.deal.decision !== 'accept') {

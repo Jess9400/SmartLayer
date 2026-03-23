@@ -138,7 +138,7 @@ export async function vaultExecute(
     destination,
     amountWei,
     apyBps,
-    { gasLimit: 300_000n }
+    { gasLimit: 600_000n }
   );
   const receipt = await tx.wait();
 
@@ -167,4 +167,37 @@ export function contractsConfigured(): boolean {
     process.env.CONTRACT_REPUTATION_REGISTRY &&
     process.env.CONTRACT_VAULT
   );
+}
+
+/**
+ * One-time demo setup: deposit ETH into vault and assign Beta as its own agent.
+ * Safe to call on every startup — skips deposit if balance already >= threshold.
+ */
+export async function setupVaultDemo(betaPrivateKey: string, betaAddress: string): Promise<void> {
+  const { vault } = getContracts(betaPrivateKey);
+
+  // Check current vault balance
+  const vaultBal: bigint = await vault.getBalance(betaAddress);
+  const threshold = ethers.parseEther('0.005');
+
+  if (vaultBal < threshold) {
+    const depositAmount = ethers.parseEther('0.01');
+    console.log('[vault] Depositing 0.01 XETH into SmartLayerVault for demo...');
+    const tx1 = await vault.deposit({ value: depositAmount });
+    await tx1.wait();
+    console.log('[vault] Deposit confirmed.');
+  } else {
+    console.log(`[vault] Vault balance ${ethers.formatEther(vaultBal)} XETH — skipping deposit.`);
+  }
+
+  // Assign Beta as its own agent (idempotent)
+  const assigned: string = await vault.getBetaAgent(betaAddress);
+  if (assigned.toLowerCase() !== betaAddress.toLowerCase()) {
+    console.log('[vault] Assigning Beta as its own agent...');
+    const tx2 = await vault.assignAgent(betaAddress);
+    await tx2.wait();
+    console.log('[vault] Agent assigned.');
+  } else {
+    console.log('[vault] Agent already assigned — skipping.');
+  }
 }
