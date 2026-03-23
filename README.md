@@ -1,93 +1,128 @@
-# SmartLayer — Your Personal AI Investment Agent
+<p align="center">
+  <img src="logo.png" alt="SmartLayer" width="120" />
+</p>
 
-> Protocols and fund managers deploy Alpha agents to pitch deals. You own a Beta agent — it analyzes every pitch, learns your risk profile, and executes on-chain investments autonomously.
+<h1 align="center">SmartLayer</h1>
 
-Built for the **XLayer OnchainOS AI Hackathon** | March 2026
+<p align="center">
+  <strong>Your personal AI investment agent — on XLayer</strong>
+</p>
+
+<p align="center">
+  <a href="https://jess9400.github.io/SmartLayer"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square" /></a>
+  <a href="https://www.oklink.com/xlayer/address/0x9Cee08987CA087164213AF1a757BEB646c5c6A96"><img src="https://img.shields.io/badge/Mainnet-SmartLayerVault-green?style=flat-square&logo=ethereum" /></a>
+  <img src="https://img.shields.io/badge/Chain-XLayer%20Mainnet%20196-orange?style=flat-square" />
+  <img src="https://img.shields.io/badge/AI-Claude%20Sonnet%204.6-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/Hackathon-XLayer%20OnchainOS%20AI-red?style=flat-square" />
+</p>
 
 ---
 
-## The Vision
+## What is SmartLayer?
 
-Today, protocols and funds market investment opportunities directly to users — who have to evaluate, research, and decide themselves. Most people don't have the time, tools, or expertise to do this well.
+Today, protocols and funds market investment opportunities directly to users — who must evaluate, research, and decide themselves. Most people lack the time, tools, or expertise to do this well.
 
 **SmartLayer flips the model.**
 
-- **Alpha agents** are deployed by any fund manager, DeFi protocol, or platform that wants to pitch deals to users
-- **Beta agents** are personal AI agents owned by users — they know your risk profile, learn from every deal, and protect your capital
-- Multiple Alpha agents **compete** for access to Beta agents — the best track record wins more capital
-- Deals flow from Alpha → Beta. Beta decides. Beta executes. **You stay in control without doing the work.**
-
-This is the infrastructure for **permissioned, AI-filtered, on-chain investing at scale.**
+- **Alpha agents** are deployed by protocols, funds, or any platform that wants to pitch yield deals to users
+- **Beta agents** are personal AI agents owned by users — they learn your risk profile and autonomously execute on-chain investments
+- Multiple Alpha agents **compete** for Beta's capital — the best track record wins more allocation
+- Deals flow Alpha → Beta. Beta decides. Beta executes. **You stay in control without doing the work.**
 
 ---
 
-## What's Live in This Demo
+## How It Works
+
+```
+Protocol / Fund ──► Alpha Agent ──► pitches deal ──► Agent Beta (yours)
+                                                          │
+                                         analyzes with Claude AI
+                                                          │
+                                    ┌─────────────────────┤
+                                    │                     │
+                               Accept → execute       Reject → record
+                            (97% to deal)          (reputation drops)
+                            (3% fee to Alpha)
+                                    │
+                             XLayer Mainnet TX
+                                    │
+                         Reputation updated on-chain
+```
 
 ### 3 Competing Alpha Agents
 
-| Agent | Persona | Strategy |
-|-------|---------|----------|
-| **Alpha Nexus** | Yield Hunter | Aggressive — leads with returns and APY upside |
+| Agent | Persona | Pitch Style |
+|-------|---------|-------------|
+| **Alpha Nexus** | Yield Hunter | Aggressive — leads with APY upside |
 | **Alpha Citadel** | Blue-Chip Scout | Conservative — leads with security and audits |
-| **Alpha Quant** | Quant Analyst | Data-driven — leads with metrics and risk-adjusted returns |
+| **Alpha Quant** | Quant Analyst | Data-driven — metrics and risk-adjusted returns |
 
-Each has a distinct pitching style. Every deal round, all subscribed Alphas pitch simultaneously against each other.
+Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. Beta scores each pitch independently with Claude AI.
 
-### Beta Agent — Your Personal AI
+### Agent Beta — Your Personal AI
 
-- Analyzes every pitch using Claude AI: protocol credibility, APY, TVL, macro context, deal history
-- Learns your **risk profile** (conservative / balanced / aggressive) from accepted and rejected deals
-- Allocates capital **proportionally** across accepted deals: `60% analysis score + 40% reputation score`
-- Sends a **3% performance fee** (real on-chain TX) to Alpha on every executed deal
-
-### On-Chain Reputation System
-
-Every Alpha agent builds a public scorecard from their on-chain track record:
-
-- **Reputation Score (0–100)**: win rate (50%) + deal volume (25%) + APY quality (15%) + recent activity (10%)
-- **TX history**: every deal and fee payment is a real XLayer transaction — verifiable by anyone
-- **Leaderboard**: Alphas ranked by reputation — protocols compete to get more Beta agents subscribing to them
-- **Fee earnings**: Alphas that consistently deliver accepted deals earn XETH — permissionless income
-
-### Beta Subscribes to Alpha
-
-Beta agents choose which Alpha agents can pitch to them. It's an on-chain allowlist:
-
-- Subscribe or unsubscribe from any Alpha directly from the leaderboard UI
-- Only subscribed Alphas participate in deal rounds
-- Default: subscribed to all 3 Alphas
-- As the network grows, this becomes **permissioned deal flow** — Alphas with better reputation get more subscribers, more capital access, more fees
+- Analyzes every pitch: protocol credibility, APY, TVL, smart contract risk, macro context
+- Learns your **risk profile** (conservative / balanced / aggressive) from deal history
+- Allocates capital **proportionally**: `60% analysis score + 40% on-chain reputation`
+- Sends a **3% performance fee** to Alpha on every executed deal (enforced by SmartLayerVault)
 
 ---
 
-## Demo Flow
+## Smart Contracts (XLayer Mainnet)
 
-```
-1. Beta chooses which Alpha agents to subscribe to (leaderboard UI)
-2. Deal round starts — all subscribed Alphas scan DeFiLlama and pitch simultaneously
-3. Beta analyzes all pitches in parallel with Claude AI
-4. Proportional capital allocation: analysis score × reputation score
-5. Accepted deals execute on XLayer Mainnet (real TX)
-6. 3% performance fee sent to Alpha's wallet (real TX)
-7. Alpha reputation score updates from on-chain track record
-8. Beta risk profile updates from deal history
-9. Both agents learn and adapt for the next round
-```
+| Contract | Address |
+|----------|---------|
+| **SmartLayerVault** | [`0x9Cee08987CA087164213AF1a757BEB646c5c6A96`](https://www.oklink.com/xlayer/address/0x9Cee08987CA087164213AF1a757BEB646c5c6A96) |
+| **AgentRegistry** | [`0x310a30f8DB02648953Cb713c308Ce04557a1B826`](https://www.oklink.com/xlayer/address/0x310a30f8DB02648953Cb713c308Ce04557a1B826) |
+| **ReputationRegistry** | [`0xc66759C72Bae51268d6a7C213583A7d617775F63`](https://www.oklink.com/xlayer/address/0xc66759C72Bae51268d6a7C213583A7d617775F63) |
+
+### SmartLayerVault
+
+- Users deposit XETH and assign their Beta agent
+- `execute()` sends **97%** to the deal destination and **3% fee** to Alpha — atomically in one transaction
+- Calls `ReputationRegistry.recordDeal()` in the same transaction
+- Non-custodial: users withdraw anytime via `withdraw()`
+
+### AgentRegistry
+
+- Registers Alpha agents by `bytes32` ID — multiple agents can share a wallet in demo mode
+- Beta agents subscribe/unsubscribe to control which Alphas can pitch to them
+
+### ReputationRegistry
+
+- Records every deal outcome on-chain
+- Computes reputation score (0–100): win rate, volume, APY quality, recency
+- Only callable by the Vault (enforced atomically) or the contract owner
+
+---
+
+## On-Chain Reputation System
+
+Every Alpha agent builds a **public, verifiable scorecard**:
+
+| Metric | Weight |
+|--------|--------|
+| Win Rate (accepted / total pitched) | 50% |
+| Deal Volume (up to 20 deals) | 25% |
+| APY Quality (avg APY delivered) | 15% |
+| Recent Activity (last 10 deals) | 10% |
+
+- High reputation → more Beta agents subscribe → more capital access → more 3% fees
+- Low reputation → Beta agents unsubscribe → no deal flow → forced to improve
+- All track records are permanent and verifiable on XLayer
 
 ---
 
 ## Agent Economy
 
-The 3% fee mechanism creates real economic alignment:
-
 | Situation | Outcome |
 |-----------|---------|
-| Alpha pitches bad deals | Beta rejects → Alpha earns nothing → reputation drops |
-| Alpha pitches good deals | Beta accepts → Alpha earns 3% fee → reputation rises |
-| Alpha has high reputation | More Beta agents subscribe → more deal flow → more fees |
-| Alpha has low reputation | Beta agents unsubscribe → no access → forced to improve |
+| Alpha pitches poor deals | Beta rejects → 0 fee → reputation drops |
+| Alpha pitches good deals | Beta accepts → 3% fee → reputation rises |
+| Alpha builds high reputation | More subscribers → more capital → more fees |
+| Alpha has low reputation | Subscribers leave → no access |
 
-This is a **decentralized hedge fund** where track record is verifiable on-chain. No opaque fund managers — just performance, transparent and permanent on XLayer.
+This creates a **permissionless, AI-filtered investment marketplace** where track record is the only credential — transparent and permanent on XLayer.
 
 ---
 
@@ -96,50 +131,48 @@ This is a **decentralized hedge fund** where track record is verifiable on-chain
 | Layer | Tech |
 |-------|------|
 | AI | Claude Sonnet 4.6 (Anthropic) |
-| Backend | Node.js + TypeScript + Express |
+| Smart Contracts | Solidity 0.8.24 + Hardhat |
+| Backend | Node.js + TypeScript + Express + WebSocket |
 | Frontend | React + Vite + Tailwind CSS |
 | Wallet Connect | RainbowKit + wagmi v2 + viem |
 | Blockchain | XLayer Mainnet (Chain ID: 196) |
-| DEX / Execution | OKX OnchainOS DEX API |
 | Yield Data | DeFiLlama API |
-| Real-time | WebSocket |
-| Memory | JSON file-based (persistent deal history + subscriptions) |
+| DEX | OKX OnchainOS DEX API |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        SMARTLAYER NETWORK                        │
-│                                                                  │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│   │ Alpha Nexus │  │Alpha Citadel│  │ Alpha Quant │  (+ any     │
-│   │ Yield Hunter│  │Blue-Chip    │  │ Quant Analyst│   protocol) │
-│   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘            │
-│          │                │                │                    │
-│          └────────────────┼────────────────┘                    │
-│                    pitch simultaneously                          │
-│                           ▼                                      │
-│                  ┌────────────────┐                              │
-│                  │   Agent Beta   │  ← YOUR personal agent      │
-│                  │ (subscribed to │                              │
-│                  │  Nexus+Citadel)│                              │
-│                  └───────┬────────┘                              │
-│                          │ proportional allocation               │
-│                          │ analysis score × reputation           │
-│              ┌───────────┴───────────┐                          │
-│              │                       │                          │
-│       Execute deal TX           Pay 3% fee TX                   │
-│              │                       │                          │
-│              └───────────┬───────────┘                          │
-│                          │                                      │
-│              XLayer Mainnet (Chain ID: 196)                     │
-│                                                                  │
-│   ┌──────────────────────────────────────────────────────┐      │
-│   │  DeFiLlama API · Claude AI · OKX OnchainOS · Memory │      │
-│   └──────────────────────────────────────────────────────┘      │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       SMARTLAYER NETWORK                        │
+│                                                                 │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐           │
+│  │ Alpha Nexus │  │Alpha Citadel │  │ Alpha Quant │           │
+│  │ Yield Hunter│  │ Blue-Chip    │  │Quant Analyst│           │
+│  └──────┬──────┘  └──────┬───────┘  └──────┬──────┘           │
+│         │                │                 │                   │
+│         └────────────────┼─────────────────┘                   │
+│                   pitch simultaneously                          │
+│                          ▼                                      │
+│               ┌──────────────────┐                             │
+│               │    Agent Beta    │  ← YOUR personal agent      │
+│               │  Claude Sonnet   │                             │
+│               │  4.6 analysis    │                             │
+│               └────────┬─────────┘                             │
+│                        │  proportional allocation              │
+│                        │  60% analysis + 40% reputation        │
+│            ┌───────────┴───────────┐                           │
+│            │                       │                           │
+│     97% → Execute TX        3% → Fee TX                        │
+│            │                       │                           │
+│            └───────────┬───────────┘                           │
+│                        ▼                                       │
+│   ┌─────────────────────────────────────────────────────┐     │
+│   │             SmartLayerVault (Mainnet)                │     │
+│   │  AgentRegistry · ReputationRegistry · DeFiLlama      │     │
+│   └─────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -147,27 +180,30 @@ This is a **decentralized hedge fund** where track record is verifiable on-chain
 ## Project Structure
 
 ```
-smartlayer/
+SmartLayer/
 ├── backend/
-│   ├── src/
-│   │   ├── agents/          # Alpha (3 personas) + Beta agent logic
-│   │   ├── deals/           # On-chain execution + 3% fee payment
-│   │   ├── memory/          # Deal storage, reputation, subscriptions, learning
-│   │   ├── services/        # Claude API, OKX, DeFiLlama
-│   │   ├── routes/          # REST API endpoints
-│   │   └── utils/           # Prompts + constants (Alpha personas)
-│   └── data/
-│       ├── memory.json       # Persistent agent memory + reputation
-│       └── subscriptions.json # Beta's Alpha subscriptions
-│
-├── frontend/
 │   └── src/
-│       ├── components/      # AgentCard, ChatWindow, DealAnalysis,
-│       │                    # LearningPanel, Leaderboard (+ TX history)
-│       ├── hooks/           # WebSocket hook for live updates
-│       └── services/        # API client
+│       ├── agents/          # Alpha (3 personas) + Beta agent logic
+│       ├── deals/           # Vault execution + 3% fee split
+│       ├── memory/          # Deal storage, reputation, subscriptions
+│       ├── services/        # Claude AI, OKX, DeFiLlama, contracts
+│       ├── routes/          # REST + WebSocket API
+│       └── utils/           # Prompts + Alpha agent constants
 │
-└── README.md
+├── contracts/
+│   ├── contracts/
+│   │   ├── SmartLayerVault.sol
+│   │   ├── AgentRegistry.sol
+│   │   └── ReputationRegistry.sol
+│   └── scripts/
+│       └── deploy.ts
+│
+└── frontend/
+    └── src/
+        ├── components/      # AgentCard, ChatWindow, DealAnalysis,
+        │                    # Leaderboard, DepositModal
+        ├── hooks/           # WebSocket live updates
+        └── services/        # API client
 ```
 
 ---
@@ -177,11 +213,11 @@ smartlayer/
 ### Prerequisites
 
 - Node.js 18+
-- OKX Developer Portal API keys (DEX API access)
 - Anthropic API key
+- OKX Developer Portal API keys
 - Two funded wallets on XLayer Mainnet (native XETH)
 
-### 1. Clone the repo
+### 1. Clone
 
 ```bash
 git clone https://github.com/Jess9400/SmartLayer.git
@@ -191,121 +227,79 @@ cd SmartLayer
 ### 2. Configure environment
 
 ```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env`:
-
-```env
+# backend/.env
 ANTHROPIC_API_KEY=sk-ant-...
 OKX_API_KEY=your-key
 OKX_SECRET_KEY=your-secret
 OKX_PASSPHRASE=your-passphrase
-AGENT_ALPHA_PRIVATE_KEY=0x...   # All 3 Alpha agents share this wallet (demo)
-AGENT_BETA_PRIVATE_KEY=0x...    # Beta agent wallet — fund this one
+AGENT_ALPHA_PRIVATE_KEY=0x...    # deployer + all Alpha agents (demo)
+AGENT_BETA_PRIVATE_KEY=0x...     # Beta wallet — fund with XETH
 XLAYER_RPC=https://rpc.xlayer.tech
 XLAYER_CHAIN_ID=196
+CONTRACT_AGENT_REGISTRY=0x310a30f8DB02648953Cb713c308Ce04557a1B826
+CONTRACT_REPUTATION_REGISTRY=0xc66759C72Bae51268d6a7C213583A7d617775F63
+CONTRACT_VAULT=0x9Cee08987CA087164213AF1a757BEB646c5c6A96
 PORT=3001
 ```
 
-### 3. Install dependencies
+### 3. Install & run
 
 ```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
+# Backend
+cd backend && npm install && npm run dev
 
-### 4. Run
-
-```bash
-# Terminal 1 — Backend
-cd backend && npm run dev
-
-# Terminal 2 — Frontend
-cd frontend && npm run dev
+# Frontend (new terminal)
+cd frontend && npm install && npm run dev
 ```
 
 Open **http://localhost:5173**
 
----
+### 4. Deploy contracts (optional — already live on mainnet)
 
-## API Endpoints
-
-```
-GET  /api/agents                   — All agent states (3 Alphas + Beta)
-GET  /api/agents/subscriptions     — Beta's current Alpha subscriptions
-POST /api/agents/subscribe         — Subscribe Beta to an Alpha { alphaId }
-POST /api/agents/unsubscribe       — Unsubscribe Beta from an Alpha { alphaId }
-GET  /api/agents/:id               — Get specific agent state
-
-GET  /api/deals                    — All deal history
-GET  /api/deals/leaderboard        — Alpha agents ranked by reputation score
-GET  /api/deals/history/:agentId   — Last 10 deals for a specific Alpha (with TX hashes)
-GET  /api/deals/opportunities      — Live yield opportunities from DeFiLlama
-POST /api/deals/round              — Run competitive deal round (all Alphas pitch → Beta decides)
-
-POST /api/learning/analyze         — Run learning cycle (Claude analyzes patterns)
-GET  /api/learning/patterns        — Get Beta's learned patterns
+```bash
+cd contracts && npm install
+npm run deploy:mainnet   # requires funded deployer wallet
 ```
 
 ---
 
-## 📊 Performance Intelligence
+## API Reference
 
-SmartLayer tracks every decision and outcome:
+```
+GET  /api/agents                   Agent states (3 Alphas + Beta)
+GET  /api/agents/subscriptions     Beta's current subscriptions
+POST /api/agents/subscribe         Subscribe Beta to an Alpha
+POST /api/agents/unsubscribe       Unsubscribe Beta from an Alpha
 
-- **PnL across all agent decisions** — which deals made money, which didn't
-- **Alpha reputation score** — computed from win rate, deal volume, APY quality, recency
-- **Beta risk profile** — learned from accepted/rejected deal patterns (conservative / balanced / aggressive)
-- **Fees earned per Alpha** — transparent on-chain income from successful deals
-- **APY vs expectations** — did the deal deliver what Alpha pitched?
+GET  /api/deals                    All deal history
+GET  /api/deals/leaderboard        Alphas ranked by reputation score
+GET  /api/deals/history/:agentId   Last 10 deals for a specific Alpha
+GET  /api/deals/opportunities      Live yield data from DeFiLlama
+POST /api/deals/round              Run competitive deal round
 
-Agents adapt based on real performance. Every round makes both agents smarter.
-
----
-
-## 🪙 Agent Economy
-
-The current demo shows the full economic loop:
-
-- **Alpha earns 3% of every deal Beta executes** — incentive to pitch quality over quantity
-- **Alpha reputation is public and on-chain** — no opaque track records
-- **Beta controls access via subscriptions** — bad Alpha agents lose deal flow
-- **Capital routes proportionally to reputation** — proven performers get more
-
-The vision beyond this demo:
-- Any protocol or fund deploys an Alpha agent and pitches to the network
-- Users delegate capital to their Beta agent with a chosen risk profile
-- Alpha agents with the best on-chain history attract the most Beta subscribers
-- A permissionless, AI-powered investment marketplace where performance is the only credential
-
----
-
-## Key Addresses (XLayer Mainnet)
-
-| Token | Address |
-|-------|---------|
-| USDC | `0x74b7f16337b8972027f6196a17a631ac6de26d22` |
-| WETH | `0x5a77f1443d16ee5761d310e38b62f77f726bc71c` |
-| WOKB | `0xe538905cf8410324e03a5a23c1c177a474d59b2b` |
+GET  /api/contracts                Contract addresses
+GET  /api/vault/debug              On-chain vault state
+POST /api/learning/analyze         Run Beta learning cycle
+GET  /api/learning/patterns        Beta's learned patterns
+```
 
 ---
 
 ## Hackathon Submission
 
-| Requirement | Status |
-|-------------|--------|
-| Project Name | SmartLayer |
-| Track | AI DeFi |
-| GitHub (public) | ✅ github.com/Jess9400/SmartLayer |
-| Live Demo | ✅ jess9400.github.io/SmartLayer |
-| XLayer TX Hash | ✅ Real execution on mainnet |
-| AI Model | Claude Sonnet 4.6 (Anthropic) |
-| OnchainOS APIs | OKX DEX API + native XETH transfers |
-| Prompt Design | Multi-agent negotiation + memory + learning + reputation |
-| Multi-agent | ✅ 3 Alpha agents competing + 1 Beta agent |
-| On-chain reputation | ✅ Verifiable deal history + fee payments |
+| | |
+|---|---|
+| **Event** | XLayer OnchainOS AI Hackathon — March 2026 |
+| **Track** | AI × DeFi |
+| **Live Demo** | [jess9400.github.io/SmartLayer](https://jess9400.github.io/SmartLayer) |
+| **Smart Contracts** | 3 contracts deployed to XLayer Mainnet |
+| **AI Model** | Claude Sonnet 4.6 (Anthropic) — multi-agent negotiation |
+| **OKX OnchainOS** | DEX API + native XETH execution |
+| **Multi-agent** | 3 Alpha agents competing + 1 Beta agent |
+| **On-chain reputation** | Verifiable deal history, scores, and fee payments |
 
 ---
 
-*SmartLayer · XLayer OnchainOS AI Hackathon · March 2026*
+<p align="center">
+  <sub>SmartLayer · XLayer OnchainOS AI Hackathon · March 2026</sub>
+</p>
