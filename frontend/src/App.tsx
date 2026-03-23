@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount } from 'wagmi';
 import AgentCard from './components/AgentCard';
 import ChatWindow from './components/ChatWindow';
 import DealAnalysis from './components/DealAnalysis';
 import LearningPanel from './components/LearningPanel';
+import DepositModal from './components/DepositModal';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
 import { getAgents, startDealRound, runLearning } from './services/api';
 
@@ -30,6 +33,9 @@ export default function App() {
   const [isLearning, setIsLearning] = useState(false);
   const [activeAlpha, setActiveAlpha] = useState(false);
   const [activeBeta, setActiveBeta] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+
+  const { isConnected } = useAccount();
 
   const handleWSMessage = useCallback((msg: WSMessage) => {
     setMessages(prev => [...prev, msg]);
@@ -95,7 +101,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/logo.png"
+              src="/SmartLayer/logo.png"
               alt="SmartLayer"
               className="h-8 w-auto"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -110,7 +116,8 @@ export default function App() {
               <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
               {wsConnected ? 'Live' : 'Reconnecting...'}
             </div>
-            <span className="text-xs text-gray-500 font-mono">XLayer Mainnet</span>
+            <span className="text-xs text-gray-500 font-mono hidden sm:inline">XLayer Mainnet</span>
+            <ConnectButton chainStatus="none" showBalance={false} />
           </div>
         </div>
       </header>
@@ -125,33 +132,47 @@ export default function App() {
               </span>
             </div>
             <h1 className="text-4xl font-black text-white mb-4 leading-tight">
-              Your Personal AI Agent<br />
-              <span className="text-green-400">Filters, Analyzes & Invests</span> For You
+              Delegate Your Capital.<br />
+              <span className="text-green-400">Your Agent Invests For You.</span>
             </h1>
             <p className="text-gray-400 text-lg mb-3 leading-relaxed">
-              Fund managers, protocols, and platforms deploy <strong className="text-gray-200">Alpha agents</strong> to pitch investment opportunities. You have your own <strong className="text-gray-200">Beta agent</strong> — a personal AI gatekeeper that knows your risk profile, learns from every deal, and executes on-chain investments autonomously. You don't evaluate deals anymore. <strong className="text-green-400">Your agent does.</strong>
+              Fund managers and protocols deploy <strong className="text-gray-200">Alpha agents</strong> to pitch investment opportunities. You delegate capital to your own <strong className="text-gray-200">Beta agent</strong> — a personal AI gatekeeper that evaluates every deal, learns your risk profile, and executes on-chain investments autonomously.
             </p>
             <p className="text-gray-500 text-sm mb-6">
-              Built on XLayer Mainnet · Powered by Claude AI · Executed via OKX OnchainOS
+              You don't evaluate deals anymore. <strong className="text-green-400">Your agent does.</strong>
             </p>
-            <div className="grid grid-cols-2 gap-3 text-sm max-w-xl">
+            <div className="grid grid-cols-2 gap-3 text-sm max-w-xl mb-6">
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
-                <span>Any protocol or fund pitches deals via an Alpha agent</span>
+                <span>Connect your wallet and delegate capital to your Beta agent</span>
               </div>
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
-                <span>Your Beta agent scores deals using AI, macro & history</span>
+                <span>Protocols pitch deals via Alpha agents</span>
               </div>
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
-                <span>Accepted deals execute on XLayer — real TX, real funds</span>
+                <span>Beta scores every deal with Claude AI analysis</span>
               </div>
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</span>
-                <span>Beta learns your preferences and gets smarter over time</span>
+                <span>Accepted deals execute on XLayer — real TX, real funds</span>
               </div>
             </div>
+
+            {/* Delegate CTA */}
+            {isConnected ? (
+              <button
+                onClick={() => setShowDeposit(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
+              >
+                💰 Delegate Capital to Your Agent
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <ConnectButton label="Connect Wallet to Get Started" />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -189,7 +210,7 @@ export default function App() {
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handleNewRound}
             disabled={isRunning}
@@ -200,10 +221,16 @@ export default function App() {
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Running Deal Round...
               </>
-            ) : (
-              '⚡ New Deal Round'
-            )}
+            ) : '⚡ New Deal Round'}
           </button>
+          {isConnected && beta?.walletAddress && (
+            <button
+              onClick={() => setShowDeposit(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
+            >
+              💰 Deposit to Agent
+            </button>
+          )}
           <span className="text-gray-500 text-sm">
             {messages.length > 0 ? `${messages.length} messages` : 'Click to start agent negotiation'}
           </span>
@@ -230,6 +257,16 @@ export default function App() {
       <footer className="border-t border-gray-800 mt-12 py-6 text-center text-gray-600 text-xs">
         SmartLayer — XLayer OnchainOS AI Hackathon 2026 · Powered by Claude AI + OKX OnchainOS
       </footer>
+
+      {/* Deposit Modal */}
+      {showDeposit && beta?.walletAddress && (
+        <DepositModal
+          agentAddress={beta.walletAddress}
+          agentName="Agent Beta"
+          onClose={() => setShowDeposit(false)}
+          onSuccess={() => { setShowDeposit(false); loadAgents(); }}
+        />
+      )}
     </div>
   );
 }
