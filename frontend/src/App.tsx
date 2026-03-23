@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
+import ConnectWallet from './components/ConnectWallet';
 import AgentCard from './components/AgentCard';
 import ChatWindow from './components/ChatWindow';
 import DealAnalysis from './components/DealAnalysis';
@@ -206,7 +206,7 @@ export default function App() {
               {wsConnected ? 'Live' : 'Reconnecting...'}
             </div>
             <span className="text-xs text-gray-500 font-mono hidden sm:inline">XLayer Mainnet</span>
-            <ConnectButton chainStatus="none" showBalance={false} />
+            <ConnectWallet />
           </div>
         </div>
       </header>
@@ -275,7 +275,7 @@ export default function App() {
                     <CoinsIcon size={15} className="text-white" /> Delegate Capital
                   </button>
                 ) : (
-                  <ConnectButton label="Connect Wallet to Get Started" />
+                  <ConnectWallet label="Connect Wallet to Get Started" />
                 )}
                 <button
                   onClick={() => setShowHowItWorks(v => !v)}
