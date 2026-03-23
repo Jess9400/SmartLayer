@@ -113,9 +113,16 @@ export default function DealAnalysis({ deal }: DealAnalysisProps) {
           </div>
           <p className="text-gray-300 text-xs">{deal.decisionReasoning}</p>
           {deal.txHash && (
-            <div className="mt-2 font-mono text-xs text-green-400 bg-green-500/10 rounded px-2 py-1 break-all">
-              TX: {deal.txHash}
-            </div>
+            <a
+              href={`https://www.oklink.com/xlayer/tx/${deal.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 flex items-center gap-1.5 font-mono text-xs text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded px-2 py-1 break-all transition-colors"
+            >
+              <span>⛓️</span>
+              <span className="truncate">TX: {deal.txHash.slice(0, 20)}...{deal.txHash.slice(-8)}</span>
+              <span className="shrink-0 text-green-500/60">↗</span>
+            </a>
           )}
         </div>
       )}

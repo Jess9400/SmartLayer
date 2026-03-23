@@ -29,32 +29,39 @@ interface AgentState {
 
 export default function App() {
   const [messages, setMessages] = useState<WSMessage[]>([]);
-  const [alpha, setAlpha] = useState<AgentState | null>(null);
+  const [alphas, setAlphas] = useState<AgentState[]>([]);
   const [beta, setBeta] = useState<AgentState | null>(null);
   const [activeDeal, setActiveDeal] = useState<any>(null);
   const [learningData, setLearningData] = useState<any>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isLearning, setIsLearning] = useState(false);
-  const [activeAlpha, setActiveAlpha] = useState(false);
+  const [activeAlphaIds, setActiveAlphaIds] = useState<Set<string>>(new Set());
   const [activeBeta, setActiveBeta] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [subscribedIds, setSubscribedIds] = useState<string[]>([]);
+  const [roundCount, setRoundCount] = useState(0);
+  const [txCount, setTxCount] = useState(0);
 
   const { isConnected } = useAccount();
 
   const handleWSMessage = useCallback((msg: WSMessage) => {
     setMessages(prev => [...prev, msg]);
-    if (msg.agentId === 'agent-alpha') setActiveAlpha(true);
+    if (msg.agentId?.includes('alpha')) {
+      setActiveAlphaIds(prev => new Set([...prev, msg.agentId!]));
+    }
     if (msg.agentId === 'agent-beta') setActiveBeta(true);
     if (msg.type === 'deal_update' || msg.type === 'deal_executed' || msg.type === 'analysis_update') {
       setActiveDeal(msg.deal);
+    }
+    if (msg.type === 'deal_executed') {
+      setTxCount(prev => prev + 1);
     }
     if (msg.type === 'learning_update' && msg.data) {
       setLearningData(msg.data);
     }
     if (msg.type === 'deal_update' && (msg.deal as any)?.status === 'decided') {
-      setActiveAlpha(false);
+      setActiveAlphaIds(new Set());
       setActiveBeta(false);
     }
   }, []);
@@ -64,7 +71,7 @@ export default function App() {
   async function loadAgents() {
     try {
       const data = await getAgents();
-      setAlpha(data.alpha);
+      setAlphas(data.alphas || []);
       setBeta(data.beta);
     } catch {}
   }
@@ -93,13 +100,14 @@ export default function App() {
 
   async function handleNewRound() {
     setIsRunning(true);
-    setActiveAlpha(true);
+    setActiveAlphaIds(new Set(alphas.map(a => a.id)));
+    setRoundCount(prev => prev + 1);
     try {
       await startDealRound();
       await Promise.all([loadAgents(), loadLeaderboard()]);
     } finally {
       setIsRunning(false);
-      setActiveAlpha(false);
+      setActiveAlphaIds(new Set());
       setActiveBeta(false);
     }
   }
@@ -114,10 +122,9 @@ export default function App() {
     }
   }
 
-  const alphaAccepts = alpha?.memory?.dealsAccepted?.length ?? 0;
-  const alphaPitched = alpha?.memory?.dealsPitched?.length ?? 0;
   const betaReceived = beta?.memory?.dealsReceived?.length ?? 0;
   const betaAccepted = beta?.memory?.dealsAccepted?.length ?? 0;
+  const totalFeesCollected = leaderboard.reduce((sum, e) => sum + (e.totalFeesEarned ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -174,7 +181,7 @@ export default function App() {
               </div>
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
-                <span>Protocols pitch deals via Alpha agents</span>
+                <span>3 Alpha agents compete to pitch you the best deals</span>
               </div>
               <div className="flex items-start gap-2 text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
@@ -191,12 +198,12 @@ export default function App() {
               <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-2 text-sm">
                 <span>🏦</span>
                 <div>
-                  <div className="text-purple-300 font-semibold text-xs">Protocol / Fund</div>
-                  <div className="text-purple-400/70 text-xs">Alpha Agent</div>
+                  <div className="text-purple-300 font-semibold text-xs">3 Alpha Agents</div>
+                  <div className="text-purple-400/70 text-xs">Competing for capital</div>
                 </div>
               </div>
               <div className="text-gray-500 text-xs text-center">
-                <div>→ pitches deals →</div>
+                <div>→ pitch deals →</div>
               </div>
               <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2 text-sm">
                 <span>🛡️</span>
@@ -236,38 +243,95 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
-        {/* Agent Cards */}
-        <div className="flex gap-4 items-stretch">
-          <AgentCard
-            name={alpha?.name || 'Agent Alpha'}
-            role={alpha?.role || 'Deal Scout'}
-            balance={alpha?.balance || '0'}
-            walletAddress={alpha?.walletAddress || ''}
-            dealsPitched={alphaPitched}
-            successRate={alphaPitched > 0 ? Math.round((alphaAccepts / alphaPitched) * 100) : 0}
-            isActive={activeAlpha}
-            side="alpha"
-            reputationScore={leaderboard[0]?.reputationScore}
-            totalFeesEarned={leaderboard[0]?.totalFeesEarned}
-          />
-          <div className="flex flex-col items-center justify-center px-2 gap-2">
-            <div className="text-purple-400 text-xs font-medium text-center">Pitches deal</div>
-            <div className="text-gray-500 text-xl">→</div>
-            <div className="text-gray-600 text-xs">evaluates</div>
-            <div className="text-gray-500 text-xl">←</div>
-            <div className="text-green-400 text-xs font-medium text-center">Accept / Reject</div>
+        {/* Stats Bar */}
+        <div className="grid grid-cols-4 gap-3">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+            <div className="text-2xl font-black text-white">{roundCount}</div>
+            <div className="text-xs text-gray-500 mt-1">Deal Rounds</div>
           </div>
-          <AgentCard
-            name={beta?.name || 'Agent Beta'}
-            role={beta?.role || 'Deal Analyst'}
-            balance={beta?.balance || '0'}
-            walletAddress={beta?.walletAddress || ''}
-            dealsAnalyzed={betaReceived}
-            acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
-            isActive={activeBeta}
-            side="beta"
-            riskProfile={beta?.memory?.riskProfile}
-          />
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+            <div className="text-2xl font-black text-green-400">{txCount}</div>
+            <div className="text-xs text-gray-500 mt-1">On-Chain TXs</div>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+            <div className="text-2xl font-black text-purple-400">{betaReceived}</div>
+            <div className="text-xs text-gray-500 mt-1">Deals Evaluated</div>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+            <div className="text-2xl font-black text-yellow-400">
+              {totalFeesCollected > 0 ? totalFeesCollected.toFixed(5) : '0'}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">XETH Fees Paid</div>
+          </div>
+        </div>
+
+        {/* 3 Competing Alpha Agents */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium flex items-center gap-2">
+            <span>Competing Alpha Agents</span>
+            <span className="text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5 normal-case text-xs">3 agents · best pitch wins</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {alphas.length > 0 ? alphas.map((a, i) => {
+              const lb = leaderboard.find(e => e.id === a.id) || leaderboard[i] || {};
+              const pitched = a.memory?.dealsPitched?.length ?? 0;
+              const accepted = a.memory?.dealsAccepted?.length ?? 0;
+              return (
+                <AgentCard
+                  key={a.id}
+                  name={a.name}
+                  role={a.role}
+                  balance={a.balance || '0'}
+                  walletAddress={a.walletAddress || ''}
+                  dealsPitched={pitched}
+                  successRate={pitched > 0 ? Math.round((accepted / pitched) * 100) : 0}
+                  isActive={activeAlphaIds.has(a.id)}
+                  side="alpha"
+                  reputationScore={lb.reputationScore}
+                  totalFeesEarned={lb.totalFeesEarned}
+                />
+              );
+            }) : ['Alpha Nexus', 'Alpha Citadel', 'Alpha Quant'].map(name => (
+              <AgentCard
+                key={name}
+                name={name}
+                role="Loading..."
+                balance="0"
+                walletAddress=""
+                dealsPitched={0}
+                successRate={0}
+                isActive={false}
+                side="alpha"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-800" />
+          <div className="text-gray-600 text-xs flex items-center gap-2">
+            best pitch wins allocation · 60% AI score + 40% on-chain reputation
+          </div>
+          <div className="flex-1 border-t border-gray-800" />
+        </div>
+
+        {/* Beta Agent */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
+          <div className="max-w-sm">
+            <AgentCard
+              name={beta?.name || 'Agent Beta'}
+              role={beta?.role || 'Deal Analyst'}
+              balance={beta?.balance || '0'}
+              walletAddress={beta?.walletAddress || ''}
+              dealsAnalyzed={betaReceived}
+              acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
+              isActive={activeBeta}
+              side="beta"
+              riskProfile={beta?.memory?.riskProfile}
+            />
+          </div>
         </div>
 
         {/* Action Bar */}
