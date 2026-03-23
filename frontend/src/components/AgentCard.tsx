@@ -44,7 +44,7 @@ export default function AgentCard({ name, role, balance, walletAddress, dealsPit
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-400">Balance</span>
-          <span className="font-mono font-bold text-white">${parseFloat(balance || '0').toFixed(2)} USDC</span>
+          <span className="font-mono font-bold text-white">{parseFloat(balance || '0').toFixed(4)} XETH</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Wallet</span>

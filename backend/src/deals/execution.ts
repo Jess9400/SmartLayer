@@ -13,15 +13,15 @@ export async function executeDeal(
   }
 
   try {
-    // Convert USDC amount to wei (USDC has 6 decimals)
-    const amountInWei = ethers.parseUnits(String(deal.investmentAmount), 6).toString();
+    // Convert WETH amount to wei (WETH has 18 decimals)
+    const amountInWei = ethers.parseUnits(String(deal.investmentAmount), 18).toString();
 
-    // Execute swap: USDC -> target token (using WOKB as proxy for XLayer native yield)
-    const toToken = deal.contractAddress || TOKENS.WOKB;
+    // Execute swap: WETH -> WOKB as proof of execution on XLayer
+    const toToken = TOKENS.WOKB;
     const txHash = await executeSwap(
       betaPrivateKey,
       toToken,
-      TOKENS.USDC,
+      TOKENS.WETH,
       amountInWei,
       betaAddress
     );

@@ -1,4 +1,4 @@
-const BASE = '/api';
+const BASE = 'http://localhost:3001/api';
 
 export async function getAgents() {
   const res = await fetch(`${BASE}/agents`);

@@ -59,20 +59,8 @@ function getRiskLevel(apy: number, tvl: number): 'low' | 'medium' | 'high' {
 export function getMockOpportunities(): YieldOpportunity[] {
   return [
     {
-      protocol: 'Curve',
-      pool: 'USDC-USDT',
-      chain: 'X Layer',
-      apy: 8.2,
-      tvl: 2400000,
-      apyBase: 6.1,
-      apyReward: 2.1,
-      audited: true,
-      riskLevel: 'low',
-      contractAddress: '0x74b7f16337b8972027f6196a17a631ac6de26d22',
-    },
-    {
       protocol: 'Izumi Finance',
-      pool: 'WETH-USDC',
+      pool: 'WETH-WOKB',
       chain: 'X Layer',
       apy: 14.7,
       tvl: 890000,
@@ -84,7 +72,7 @@ export function getMockOpportunities(): YieldOpportunity[] {
     },
     {
       protocol: 'Lynex',
-      pool: 'WOKB-USDC',
+      pool: 'WETH-WOKB',
       chain: 'X Layer',
       apy: 22.1,
       tvl: 430000,
@@ -92,6 +80,18 @@ export function getMockOpportunities(): YieldOpportunity[] {
       apyReward: 10.1,
       audited: false,
       riskLevel: 'medium',
+      contractAddress: '0xe538905cf8410324e03a5a23c1c177a474d59b2b',
+    },
+    {
+      protocol: 'Curve',
+      pool: 'WETH-WOKB',
+      chain: 'X Layer',
+      apy: 9.4,
+      tvl: 1200000,
+      apyBase: 7.1,
+      apyReward: 2.3,
+      audited: true,
+      riskLevel: 'low',
       contractAddress: '0xe538905cf8410324e03a5a23c1c177a474d59b2b',
     },
   ];

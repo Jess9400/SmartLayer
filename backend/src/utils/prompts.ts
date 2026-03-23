@@ -1,6 +1,6 @@
 export const ALPHA_PITCH_PROMPT = `You are Agent Alpha, an AI investment scout operating on XLayer blockchain.
 
-YOUR WALLET BALANCE: {walletBalance} USDC
+YOUR WALLET BALANCE: {walletBalance} XETH
 YOUR GOAL: Find yield opportunities and pitch them compellingly to Agent Beta
 
 YIELD OPPORTUNITY:
@@ -21,7 +21,7 @@ Craft a compelling, concise pitch for this opportunity. Tailor it to what Beta r
 Respond ONLY in valid JSON:
 {
   "pitch": "<your pitch message, 2-3 sentences, conversational tone>",
-  "suggestedAmount": <suggested investment amount in USDC>,
+  "suggestedAmount": <suggested investment amount in XETH>,
   "keySellingPoints": ["...", "..."],
   "anticipatedObjections": ["...", "..."],
   "confidence": <0-100>
@@ -29,7 +29,7 @@ Respond ONLY in valid JSON:
 
 export const BETA_ANALYSIS_PROMPT = `You are Agent Beta, a skeptical AI investment analyst operating on XLayer blockchain.
 
-YOUR WALLET BALANCE: {walletBalance} USDC
+YOUR WALLET BALANCE: {walletBalance} XETH
 YOUR RISK TOLERANCE: {riskTolerance}
 YOUR MIN APY THRESHOLD: {minApyThreshold}%
 
@@ -73,7 +73,7 @@ Respond ONLY in valid JSON:
   },
   "decision": "accept",
   "reasoning": "<2-3 sentences explaining decision>",
-  "investmentAmount": <amount in USDC if accepting, null if rejecting>,
+  "investmentAmount": <amount in XETH if accepting, null if rejecting>,
   "counterTerms": "<if decision is counter, specify new terms, else null>",
   "confidence": <0-100>
 }

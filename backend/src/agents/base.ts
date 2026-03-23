@@ -22,7 +22,7 @@ export class BaseAgent {
   }
 
   async getBalance(): Promise<string> {
-    return getWalletBalance(this.walletAddress, TOKENS.USDC);
+    return getWalletBalance(this.walletAddress, TOKENS.WETH);
   }
 
   getMemory(): AgentMemory {
