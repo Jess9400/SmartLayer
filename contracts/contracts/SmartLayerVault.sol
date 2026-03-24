@@ -21,7 +21,7 @@ contract SmartLayerVault {
     mapping(address => address) public betaAgent;
     mapping(address => address[]) private _agentUsers;
 
-    // Reentrancy guard
+    // Reentrancy guard (add before next deployment)
     bool private _entered;
     error Reentrant();
     modifier nonReentrant() {
