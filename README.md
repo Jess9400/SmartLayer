@@ -108,6 +108,8 @@ Every execution: 97% goes to the deal destination, 3% fee goes to the winning Al
 - Calls `ReputationRegistry.recordDeal()` in the same transaction
 - Non-custodial: users withdraw anytime via `withdraw()`
 
+> **Demo mode note:** In this hackathon demo, Beta uses its own pre-funded wallet as the capital source for deal execution. User deposits via the UI are recorded on-chain under the user's address and can be withdrawn at any time — they demonstrate the non-custodial deposit mechanism. In production (V2), each user's vault balance would be the capital Beta deploys on their behalf, fully isolated per user.
+
 ### AgentRegistry
 
 - Registers Alpha agents by `bytes32` ID
