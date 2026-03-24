@@ -144,7 +144,7 @@ export async function getOnChainLeaderboard(alphaIds: string[]) {
       return null;
     }
   }));
-  return entries.filter(Boolean);
+  return entries.filter(Boolean).sort((a, b) => (b!.reputationScore - a!.reputationScore));
 }
 
 export async function getDealHistoryOnChain(alphaId: string) {

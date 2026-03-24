@@ -121,7 +121,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [subscribedIds, setSubscribedIds] = useState<string[]>([]);
   const [roundCount, setRoundCount] = useState(0);
-  const [txCount, setTxCount] = useState(0);
+  const [txCount, setTxCount] = useState(0); // seeded from on-chain after load
   const [vaultBalance, setVaultBalance] = useState<string | undefined>(undefined);
   const [userVaultBalance, setUserVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
@@ -238,7 +238,12 @@ export default function App() {
   async function loadOnChainStats() {
     try {
       const data = await getVaultStats();
-      if (!data.error) setOnChainStats(data);
+      if (!data.error) {
+        setOnChainStats(data);
+        // Seed counters from on-chain totals so they survive page refresh
+        if (data.totalPitched > 0) setRoundCount(r => Math.max(r, Math.ceil(data.totalPitched / 3)));
+        if (data.totalAccepted > 0) setTxCount(t => Math.max(t, data.totalAccepted));
+      }
     } catch (e) {
       console.error('[loadOnChainStats]', e);
     }
