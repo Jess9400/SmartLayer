@@ -22,6 +22,8 @@
 
 > 🎥 **[Watch Demo Video](#)** ← link coming
 >
+> 🐦 **[X Post](https://x.com/LayerSmart34250/status/2036383616553591092)** — official launch post
+>
 > 🔗 **Proof of Execution:** [0xb16861...88d1](https://www.oklink.com/xlayer/tx/0xb16861160a10fe75db88c054226b2d594fe3c879d5a597cbb936a3e4dc4488d1) · [0x21f3c2...a09f6](https://www.oklink.com/xlayer/tx/0x21f3c2b019250568c95d2a8dd72125a6cb2d9225d8cddf08a4b1d6279a7a09f6) · [0x19b098...350d0](https://www.oklink.com/xlayer/tx/0x19b098f332c05f45cbef8a5c3ffc8423e916b75b83f5720b0c4e2d3cf0d350d0) — real agent deals on XLayer Mainnet
 
 ---
