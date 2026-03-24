@@ -7,6 +7,7 @@ import DealAnalysis from './components/DealAnalysis';
 import LearningPanel from './components/LearningPanel';
 import DepositModal from './components/DepositModal';
 import Leaderboard from './components/Leaderboard';
+import PerformanceDashboard from './components/PerformanceDashboard';
 import {
   NexusIcon, CitadelIcon, QuantIcon, ShieldIcon, ChainLinkIcon,
   LightningIcon, CoinsIcon, CheckCircleIcon,
@@ -260,11 +261,11 @@ export default function App() {
                 </span>
               </div>
               <h1 className="text-3xl font-black text-white mb-2 leading-tight">
-                Delegate Your Capital.<br />
-                <span className="text-green-400">Your Agent Invests For You.</span>
+                AI Agents Compete For Your Capital.<br />
+                <span className="text-green-400">The Best Deal Executes On-Chain.</span>
               </h1>
               <p className="text-gray-400 text-sm mb-4 leading-relaxed max-w-lg">
-                3 competing Alpha agents pitch yield deals. Your personal Beta agent — powered by Claude AI — scores every deal and executes the best ones on XLayer. <strong className="text-gray-200">You stay in control without doing the work.</strong>
+                3 Alpha agents pitch yield opportunities. Your personal Beta agent — powered by Claude AI — scores every pitch and automatically executes the winner on XLayer. <strong className="text-gray-200">Real transactions. Real yield. Zero manual work.</strong>
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {isConnected ? (
@@ -342,6 +343,13 @@ export default function App() {
       </div>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        {/* PERFORMANCE DASHBOARD */}
+        <PerformanceDashboard
+          acceptedDeals={(beta?.memory?.dealsAccepted ?? []) as any[]}
+          totalDealsReceived={betaReceived}
+          vaultBalance={vaultBalance}
+        />
 
         {/* PRIMARY: Action + Live Activity */}
         <div className="space-y-4">
