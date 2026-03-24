@@ -115,14 +115,23 @@ export async function getAlphaStatsOnChain(alphaId: string) {
  * Fetch the full leaderboard directly from ReputationRegistry on-chain.
  * Returns one entry per alpha with score, stats, and derived metrics.
  */
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export async function getOnChainLeaderboard(alphaIds: string[]) {
   const { reputation } = getContracts();
-  const entries = await Promise.all(alphaIds.map(async alphaId => {
-    try {
-      const [score, stats] = await Promise.all([
-        reputation.getScore(toBytes32(alphaId)),
-        reputation.getStats(toBytes32(alphaId)),
-      ]);
+  const entries: Awaited<ReturnType<typeof fetchAlphaStat>>[] = [];
+  for (let i = 0; i < alphaIds.length; i++) {
+    if (i > 0) await delay(300);
+    entries.push(await fetchAlphaStat(reputation, alphaIds[i]));
+  }
+  return entries.filter(Boolean).sort((a, b) => (b!.reputationScore - a!.reputationScore));
+}
+
+async function fetchAlphaStat(reputation: ethers.Contract, alphaId: string) {
+  try {
+    const score = await reputation.getScore(toBytes32(alphaId));
+    await delay(150);
+    const stats = await reputation.getStats(toBytes32(alphaId));
       const totalPitched  = Number(stats.totalPitched);
       const totalAccepted = Number(stats.totalAccepted);
       const sumApyBps     = Number(stats.sumApyBps);
@@ -139,12 +148,10 @@ export async function getOnChainLeaderboard(alphaIds: string[]) {
         totalInvestedEth:  parseFloat(ethers.formatEther(investedWei)),
         source:            'onchain' as const,
       };
-    } catch (e) {
-      console.warn(`[chain] Failed to fetch stats for ${alphaId}:`, e instanceof Error ? e.message : e);
-      return null;
-    }
-  }));
-  return entries.filter(Boolean).sort((a, b) => (b!.reputationScore - a!.reputationScore));
+  } catch (e) {
+    console.warn(`[chain] Failed to fetch stats for ${alphaId}:`, e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 export async function getDealHistoryOnChain(alphaId: string) {

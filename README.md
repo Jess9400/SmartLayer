@@ -77,6 +77,8 @@ Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. 
 - Allocates capital **proportionally**: `60% analysis score + 40% on-chain reputation`
 - Sends a **3% performance fee** to Alpha on every executed deal (enforced by SmartLayerVault)
 - **Goal-aware decision making** — set a target (e.g. 0.1 XETH in 6 months) and Beta calibrates deal selection to match the required APY
+- **Deploys from user vault** — when your connected wallet has a vault balance, Beta uses it directly; falls back to demo wallet if no user deposit is present
+- **One-click withdrawal** — withdraw USDC from ZeroLend positions back to your wallet at any time from the Active Deals panel
 
 ---
 
@@ -247,13 +249,14 @@ The webhook model means Alpha operators can run proprietary strategies, fine-tun
 
 Any user can run a personal Beta agent that autonomously manages their capital:
 
-1. Deposit XETH into SmartLayerVault and assign your Beta agent address
-2. Subscribe to Alpha agents you want pitching to you
+1. Connect your wallet (OKX Wallet or MetaMask) on the live app
+2. Deposit XETH into SmartLayerVault — Beta will deploy from your balance automatically
 3. **Set your investment goal** — target amount + timeline + risk tolerance (e.g. "0.5 XETH in 12 months, moderate risk")
-4. Your Beta agent analyzes every pitch with Claude AI, calibrating decisions to your goal's required APY
+4. Click **Run Deal Round** — Beta analyzes every Alpha pitch with Claude AI, calibrating to your required APY
 5. Accepted deals execute on-chain automatically — 97% to the yield destination, 3% fee to the Alpha
+6. Monitor active positions and **withdraw anytime** from the Active Deals panel (one click → ZeroLend withdrawal TX)
 
-You withdraw anytime via `SmartLayerVault.withdraw()` — non-custodial at all times.
+Your capital is non-custodial at all times — you can withdraw from `SmartLayerVault` or individual yield positions independently.
 
 ---
 
@@ -384,11 +387,11 @@ SmartLayer/
 │
 └── frontend/
     └── src/
-        ├── components/      # AgentCard, ChatWindow, DealAnalysis,
-        │                    # Leaderboard, DepositModal, PerformanceDashboard,
-        │                    # GoalModal, GoalProgressPanel
+        ├── components/      # AgentCard, ChatWindow, DealAnalysis, Leaderboard,
+        │                    # DepositModal, PerformanceDashboard, GoalModal,
+        │                    # LearningPanel, Icons
         ├── hooks/           # WebSocket live updates
-        └── services/        # API client
+        └── services/        # API client (deals, positions, vault, learning)
 ```
 
 ---
@@ -446,34 +449,50 @@ cd contracts && npm install
 npm run deploy:mainnet   # requires funded deployer wallet
 ```
 
+### 5. Production deployment (Railway)
+
+```bash
+cd backend
+railway up
+```
+
+The backend is deployed on Railway with a **persistent volume** mounted at `/app/data` — positions and agent memory survive redeployments. Use `.railwayignore` to prevent local data files from being uploaded.
+
+> **Note:** On first deploy, run a deal round to populate positions. The Railway Volume ensures they persist across all future deploys.
+
 ---
 
 ## API Reference
 
 ```
-GET  /api/agents                   Agent states (3 Alphas + Beta)
-GET  /api/agents/subscriptions     Beta's current subscriptions
-POST /api/agents/subscribe         Subscribe Beta to an Alpha
-POST /api/agents/unsubscribe       Unsubscribe Beta from an Alpha
+GET  /api/agents                        Agent states (3 Alphas + Beta)
+GET  /api/agents/subscriptions          Beta's current subscriptions
+POST /api/agents/subscribe              Subscribe Beta to an Alpha
+POST /api/agents/unsubscribe            Unsubscribe Beta from an Alpha
 
-GET  /api/deals                    All deal history
-GET  /api/deals/leaderboard        Alphas ranked by reputation score
-GET  /api/deals/history/:agentId   Last 10 deals for a specific Alpha
-GET  /api/deals/opportunities      Live yield data from DeFiLlama
-POST /api/deals/round              Run competitive deal round
+GET  /api/deals                         All deal history
+GET  /api/deals/leaderboard             Alphas ranked by on-chain reputation score
+GET  /api/deals/history/:agentId        Last 10 deals for a specific Alpha
+GET  /api/deals/opportunities           Live yield data from DeFiLlama
+POST /api/deals/round                   Run competitive deal round
+                                        Body: { userAddress?, userGoal? }
 
-GET  /api/positions                All yield positions (active + closed)
-GET  /api/positions/active         Active positions only
-POST /api/positions/sync           Refresh APY + on-chain balances
+GET  /api/positions                     All yield positions (active + closed)
+GET  /api/positions/active              Active positions only
+POST /api/positions/sync                Refresh APY + on-chain balances
+POST /api/positions/:id/withdraw        Withdraw full balance from a yield position
 
-GET  /api/rebalancer/status        Rebalancer running state + last check time
-POST /api/rebalancer/check         Trigger manual rebalance check
+GET  /api/rebalancer/status             Rebalancer running state + last check time
+POST /api/rebalancer/check              Trigger manual rebalance check
 
-GET  /api/contracts                Contract addresses
-GET  /api/vault/balance            Beta vault balance
-GET  /api/vault/debug              Full on-chain vault state
-POST /api/learning/analyze         Run Beta learning cycle
-GET  /api/learning/patterns        Beta's learned patterns
+GET  /api/vault/balance                 Beta vault balance
+GET  /api/vault/balance?address=0x...   Any wallet's vault balance
+GET  /api/vault/stats                   Aggregate on-chain stats (totalPitched, capitalDeployed, avgAPY)
+GET  /api/vault/debug                   Full on-chain vault state
+
+POST /api/memory/reset                  Clear Beta's deal memory (starts fresh)
+POST /api/learning/analyze              Run Beta learning cycle
+GET  /api/learning/patterns             Beta's learned patterns
 ```
 
 ---

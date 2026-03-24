@@ -68,6 +68,29 @@ app.post('/api/positions/sync', async (_req, res) => {
   res.json(updated);
 });
 
+app.post('/api/positions/:id/withdraw', async (req, res) => {
+  const { updatePosition } = await import('./memory/positions');
+  const { getAdapter } = await import('./adapters/AdapterRegistry');
+  const all = getPositions();
+  const pos = all.find(p => p.id === req.params.id);
+  if (!pos) { res.status(404).json({ error: 'Position not found' }); return; }
+  if (pos.status !== 'active') { res.status(400).json({ error: 'Position is not active' }); return; }
+  try {
+    const adapter = getAdapter(pos.adapterUsed);
+    const result = await adapter.withdraw(
+      process.env.AGENT_BETA_PRIVATE_KEY!,
+      0n, // 0 = full withdrawal (MaxUint256)
+      pos.token,
+      pos.onBehalfOf
+    );
+    if (!result) { res.status(500).json({ error: 'Withdraw returned null' }); return; }
+    updatePosition(pos.id, { status: 'withdrawn', withdrawTxHash: result.txHash });
+    res.json({ txHash: result.txHash, positionId: pos.id });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Withdraw failed' });
+  }
+});
+
 // /api/vault/balance          → Beta's balance
 // /api/vault/balance?address= → specific user's balance
 app.get('/api/vault/balance', async (req, res) => {

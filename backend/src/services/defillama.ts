@@ -48,7 +48,17 @@ export async function getYieldOpportunities(chain: string = 'X Layer'): Promise<
       return getMockOpportunities();
     }
 
-    return pools.slice(0, 10);
+    // Pad with mock opportunities so there's always variety for 3 competing Alphas
+    const mocks = getMockOpportunities();
+    const merged = [...pools];
+    for (const mock of mocks) {
+      if (merged.length >= 3) break;
+      if (!merged.some(p => p.protocol.toLowerCase() === mock.protocol.toLowerCase())) {
+        merged.push(mock);
+      }
+    }
+
+    return merged.slice(0, 10);
   } catch (err) {
     console.error('DeFiLlama API error, using mock data:', err);
     return getMockOpportunities();
