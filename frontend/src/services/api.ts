@@ -1,4 +1,4 @@
-const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+const BASE = (import.meta.env.VITE_API_URL || 'https://smartlayer1-production.up.railway.app') + '/api';
 
 export async function getAgents() {
   const res = await fetch(`${BASE}/agents`);

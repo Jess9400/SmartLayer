@@ -17,7 +17,7 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   onMessageRef.current = onMessage;
 
   const connect = useCallback(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://smartlayer1-production.up.railway.app';
     const wsUrl = apiUrl.replace(/^http/, 'ws');
     const ws = new WebSocket(wsUrl);
 
