@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { WSMessage } from '../hooks/useWebSocket';
 import {
   NexusIcon, CitadelIcon, QuantIcon, ShieldIcon, ProtocolIcon,
@@ -70,9 +70,13 @@ function getStyle(msg: WSMessage): AgentStyle {
 
 export default function ChatWindow({ messages, isRunning, onStartRound }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   const isBeta = (msg: WSMessage) =>
@@ -109,7 +113,7 @@ export default function ChatWindow({ messages, isRunning, onStartRound }: ChatWi
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
             <LightningIcon size={44} className="text-green-500/40" />
@@ -168,7 +172,6 @@ export default function ChatWindow({ messages, isRunning, onStartRound }: ChatWi
             );
           })
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
