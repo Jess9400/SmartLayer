@@ -59,6 +59,11 @@ export async function getVaultBalance() {
   return res.json();
 }
 
+export async function getUserVaultBalance(address: string) {
+  const res = await fetch(`${BASE}/vault/balance/${address}`);
+  return res.json();
+}
+
 export async function getVaultStats() {
   const res = await fetch(`${BASE}/vault/stats`);
   return res.json();

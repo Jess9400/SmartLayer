@@ -72,6 +72,16 @@ app.get('/api/vault/balance', async (_req, res) => {
   }
 });
 
+// User-specific vault balance (connected wallet)
+app.get('/api/vault/balance/:address', async (req, res) => {
+  try {
+    const balance = await getVaultBalance(req.params.address);
+    res.json({ vaultBalance: balance, address: req.params.address });
+  } catch {
+    res.json({ vaultBalance: '0', address: req.params.address });
+  }
+});
+
 app.get('/api/vault/stats', async (_req, res) => {
   try {
     const alphaIds = ALPHA_AGENTS.map(a => a.id);

@@ -13,7 +13,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
 
 interface AgentState {
   id: string;
@@ -122,6 +122,7 @@ export default function App() {
   const [roundCount, setRoundCount] = useState(0);
   const [txCount, setTxCount] = useState(0);
   const [vaultBalance, setVaultBalance] = useState<string | undefined>(undefined);
+  const [userVaultBalance, setUserVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -129,7 +130,7 @@ export default function App() {
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [onChainStats, setOnChainStats] = useState<{ capitalDeployedEth: number; avgApy: number; projectedAnnualEth: number; winRate: number; totalAccepted: number; totalPitched: number } | null>(null);
 
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedAddress } = useAccount();
 
   const handleWSMessage = useCallback((msg: WSMessage) => {
     setMessages(prev => [...prev.slice(-199), msg]);
@@ -169,6 +170,11 @@ export default function App() {
 
   const wsConnected = useWebSocket(handleWSMessage);
 
+  // Load user's own vault balance when wallet connects
+  useEffect(() => {
+    if (connectedAddress) loadUserVaultBalance(connectedAddress);
+  }, [connectedAddress]);
+
   async function loadAgents() {
     try {
       const data = await getAgents();
@@ -203,6 +209,15 @@ export default function App() {
       setVaultBalance(data.vaultBalance || '0');
     } catch (e) {
       console.error('[loadVaultBalance]', e);
+    }
+  }
+
+  async function loadUserVaultBalance(address: string) {
+    try {
+      const data = await getUserVaultBalance(address);
+      setUserVaultBalance(data.vaultBalance || '0');
+    } catch (e) {
+      console.error('[loadUserVaultBalance]', e);
     }
   }
 
@@ -399,12 +414,21 @@ export default function App() {
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {isConnected ? (
-                  <button
-                    onClick={() => setShowDeposit(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
-                  >
-                    <CoinsIcon size={15} className="text-white" /> Delegate Capital
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowDeposit(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
+                    >
+                      <CoinsIcon size={15} className="text-white" /> Delegate Capital
+                    </button>
+                    {userVaultBalance !== undefined && parseFloat(userVaultBalance) > 0 && (
+                      <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2">
+                        <ChainLinkIcon size={12} className="text-green-400" />
+                        <span className="text-xs text-green-400 font-medium">Your vault:</span>
+                        <span className="text-sm font-mono font-bold text-green-300">{parseFloat(userVaultBalance).toFixed(5)} XETH</span>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <ConnectWallet label="Connect Wallet to Get Started" />
                 )}
@@ -690,7 +714,7 @@ export default function App() {
           agentAddress={beta.walletAddress}
           agentName="Agent Beta"
           onClose={() => setShowDeposit(false)}
-          onSuccess={() => { setShowDeposit(false); loadAgents(); loadVaultBalance(); }}
+          onSuccess={() => { setShowDeposit(false); loadAgents(); loadVaultBalance(); if (connectedAddress) loadUserVaultBalance(connectedAddress); }}
         />
       )}
     </div>
