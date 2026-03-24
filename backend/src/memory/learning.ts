@@ -45,7 +45,7 @@ export async function runLearningCycle(): Promise<LearningResult> {
     .replace('{dealHistory}', JSON.stringify(dealHistory, null, 2))
     .replace('{outcomes}', JSON.stringify(deals.map(d => ({ id: d.id, status: d.status, actualApy: d.actualApy })), null, 2));
 
-  const raw = await callClaude(prompt);
+  const raw = await callClaude(prompt, 3, 2048);
   const result = parseJSON<LearningResult>(raw);
 
   // Apply learnings to Beta's memory

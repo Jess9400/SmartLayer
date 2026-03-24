@@ -2,12 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export async function callClaude(prompt: string, retries = 3): Promise<string> {
+export async function callClaude(prompt: string, retries = 3, maxTokens = 1024): Promise<string> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const message = await client.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: maxTokens,
         messages: [{ role: 'user', content: prompt }],
       });
       const content = message.content[0];
