@@ -3,7 +3,7 @@ import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
 import { saveDeal, getAllDeals, getAlphaLeaderboard, getBetaSubscriptions, getDealsByAlpha, computeReputationScore, getAgentMemory } from '../memory/store';
-import { recordDealOnChain, contractsConfigured } from '../services/contracts';
+import { recordDealOnChain, contractsConfigured, getOnChainLeaderboard } from '../services/contracts';
 import { getYieldOpportunities } from '../services/defillama';
 import { WSMessage, Deal } from '../types';
 import { ethers } from 'ethers';
@@ -19,7 +19,20 @@ export function createDealRoutes(
     res.json(getAllDeals());
   });
 
-  router.get('/leaderboard', (_req: Request, res: Response) => {
+  router.get('/leaderboard', async (_req: Request, res: Response) => {
+    // Try on-chain first; merge with in-memory for any missing fields
+    if (contractsConfigured()) {
+      try {
+        const alphaIds = alphas.map(a => a.id);
+        const onChain = await getOnChainLeaderboard(alphaIds);
+        if (onChain.length > 0) {
+          res.json(onChain);
+          return;
+        }
+      } catch (e) {
+        console.warn('[leaderboard] On-chain fetch failed, falling back to in-memory:', e instanceof Error ? e.message : e);
+      }
+    }
     res.json(getAlphaLeaderboard());
   });
 

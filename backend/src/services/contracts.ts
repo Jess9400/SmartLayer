@@ -102,12 +102,47 @@ export async function getAlphaStatsOnChain(alphaId: string) {
   const { reputation } = getContracts();
   const stats = await reputation.getStats(toBytes32(alphaId));
   return {
-    totalPitched:      Number(stats.totalPitched),
-    totalAccepted:     Number(stats.totalAccepted),
-    totalInvestedWei:  stats.totalInvestedWei.toString(),
+    totalPitched:       Number(stats.totalPitched),
+    totalAccepted:      Number(stats.totalAccepted),
+    totalInvestedWei:   stats.totalInvestedWei.toString(),
     totalFeesEarnedWei: stats.totalFeesEarnedWei.toString(),
-    lastDealAt:        Number(stats.lastDealAt),
+    sumApyBps:          Number(stats.sumApyBps),
+    lastDealAt:         Number(stats.lastDealAt),
   };
+}
+
+/**
+ * Fetch the full leaderboard directly from ReputationRegistry on-chain.
+ * Returns one entry per alpha with score, stats, and derived metrics.
+ */
+export async function getOnChainLeaderboard(alphaIds: string[]) {
+  const { reputation } = getContracts();
+  const entries = await Promise.all(alphaIds.map(async alphaId => {
+    try {
+      const [score, stats] = await Promise.all([
+        reputation.getScore(toBytes32(alphaId)),
+        reputation.getStats(toBytes32(alphaId)),
+      ]);
+      const totalPitched  = Number(stats.totalPitched);
+      const totalAccepted = Number(stats.totalAccepted);
+      const sumApyBps     = Number(stats.sumApyBps);
+      const feesWei       = BigInt(stats.totalFeesEarnedWei.toString());
+      return {
+        agentId:         alphaId,
+        reputationScore: Number(score),
+        totalPitched,
+        totalAccepted,
+        winRate:         totalPitched > 0 ? Math.round((totalAccepted / totalPitched) * 100) : 0,
+        avgApy:          totalAccepted > 0 ? Math.round((sumApyBps / totalAccepted) / 10) / 10 : 0,
+        totalFeesEarned: parseFloat(ethers.formatEther(feesWei)),
+        source:          'onchain' as const,
+      };
+    } catch (e) {
+      console.warn(`[chain] Failed to fetch stats for ${alphaId}:`, e instanceof Error ? e.message : e);
+      return null;
+    }
+  }));
+  return entries.filter(Boolean);
 }
 
 export async function getDealHistoryOnChain(alphaId: string) {

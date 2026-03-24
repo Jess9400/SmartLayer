@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha, saveCustomAlpha } from '../memory/store';
-import { contractsConfigured, registerAlphaOnChain } from '../services/contracts';
+import { contractsConfigured, registerAlphaOnChain, getOnChainLeaderboard } from '../services/contracts';
 import { AGENT_IDS } from '../utils/constants';
 
 const router = Router();
@@ -16,6 +16,25 @@ export function createAgentRoutes(alphas: AlphaAgent[], beta: BetaAgent) {
         Promise.all(alphas.map(a => a.getState())),
         beta.getState(),
       ]);
+
+      // Enrich alpha states with on-chain reputation scores
+      if (contractsConfigured()) {
+        try {
+          const onChain = await getOnChainLeaderboard(alphas.map(a => a.id));
+          const scoreMap = new Map(onChain.map(e => [e!.agentId, e]));
+          for (const state of alphaStates) {
+            const chain = scoreMap.get(state.id);
+            if (chain) {
+              state.memory.reputationScore = chain.reputationScore;
+              state.memory.performance.winRate = chain.winRate;
+              state.memory.performance.totalInvested = chain.totalFeesEarned; // fees as proxy
+            }
+          }
+        } catch (e) {
+          console.warn('[agents] On-chain enrichment failed (non-fatal):', e instanceof Error ? e.message : e);
+        }
+      }
+
       res.json({ alphas: alphaStates, alpha: alphaStates[0], beta: betaState });
     } catch {
       res.status(500).json({ error: 'Failed to get agent states' });
