@@ -3,7 +3,9 @@ import path from 'path';
 import { Deal, AgentMemory } from '../types';
 import { ALPHA_AGENTS } from '../utils/constants';
 
-const SUBSCRIPTIONS_FILE = path.join(__dirname, '../../data/subscriptions.json');
+const DATA_DIR = path.join(__dirname, '../../data');
+const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function loadSubscriptions(): Record<string, string[]> {
   if (!fs.existsSync(SUBSCRIPTIONS_FILE)) {
@@ -107,7 +109,7 @@ export function computeRiskProfile(memory: AgentMemory): 'conservative' | 'balan
   return 'conservative';
 }
 
-const MEMORY_FILE = path.join(__dirname, '../../data/memory.json');
+const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
 interface MemoryStore {
   agents: Record<string, AgentMemory>;
