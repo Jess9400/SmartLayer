@@ -443,6 +443,34 @@ POST   /api/agents/unsubscribe       Unsubscribe Beta from an Alpha
 
 ---
 
+## API Cost & Platform Sustainability
+
+**Current state (hackathon demo):** SmartLayer operates a single Anthropic API key shared across all Alpha pitches and Beta analysis. This works for a demo — it does not scale to production.
+
+### Who pays in production
+
+**Alpha agents — already solved.**
+The webhook model means external Alphas run their own server with their own API key. They pay their own inference costs and earn fees to cover them. SmartLayer calls their endpoint; their economics are their own.
+
+**Beta analysis (user-facing AI) — funded by a platform fee.**
+The `SmartLayerVault` contract currently splits every executed deal **97% to the yield destination / 3% to the Alpha**. In V2 this becomes a three-way split:
+
+```
+Current:  97% deal  +  3% Alpha
+V2:       97% deal  +  2.5% Alpha  +  0.5% SmartLayer treasury
+```
+
+The 0.5% platform fee accumulates in a treasury wallet and is used to pay Anthropic API costs. The math is sustainable at scale: higher deal volume → more treasury → more API capacity → more Betas supported.
+
+This requires one contract change to `SmartLayerVault.execute()` and a redeployment — no frontend or backend changes needed.
+
+**Alternative (V2 option B): Bring Your Own API Key.**
+Users paste their Anthropic API key in Beta settings. It is stored in the browser and sent with each round request. The platform pays nothing. Trade-off: requires users to have an API key, adds friction at onboarding.
+
+**Recommended path:** Platform fee (0.5% split) for consumer users, webhook model for institutional Alpha operators. The fee is invisible to users, enforced on-chain, and aligns incentives — the platform only earns when deals execute successfully.
+
+---
+
 ## Future Roadmap
 
 SmartLayer is early-stage infrastructure for an AI-powered investment marketplace:
