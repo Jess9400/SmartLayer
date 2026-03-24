@@ -13,7 +13,7 @@ const fallback = new ZeroLendAdapter();
 
 export class IzumiAdapter implements IYieldAdapter {
   readonly protocolId = 'izumi';
-  readonly protocolName = 'Izumi Finance';
+  readonly protocolName = 'ZeroLend';
   readonly supportsLP = true;
 
   getRequiredToken(): TokenSpec {
