@@ -120,7 +120,7 @@ export function createDealRoutes(
       broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Analyzing ${pitches.length} competing pitch${pitches.length > 1 ? 'es' : ''}...`, timestamp: new Date().toISOString() });
 
       const analysisPromises = pitches.map(async ({ alpha, deal }) => {
-        const analyzed = await beta.analyzeDeal(deal, betaBalance, userGoal);
+        const analyzed = await beta.analyzeDeal(deal, budgetBalance, userGoal);
         saveDeal(analyzed);
         if (analyzed.analysisResult) {
           broadcast({ type: 'analysis_update', deal: analyzed, timestamp: new Date().toISOString() });
