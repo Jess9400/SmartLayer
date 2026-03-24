@@ -43,7 +43,7 @@ export async function getSwapQuote(
   userAddress: string
 ): Promise<{ toAmount: string; txData: string } | null> {
   try {
-    const path = `/api/v5/dex/aggregator/swap?chainId=${XLAYER_CHAIN_ID}&fromTokenAddress=${fromToken}&toTokenAddress=${toToken}&amount=${amount}&userWalletAddress=${userAddress}&slippage=0.05`;
+    const path = `/api/v6/dex/aggregator/swap?chainIndex=${XLAYER_CHAIN_ID}&fromTokenAddress=${fromToken}&toTokenAddress=${toToken}&amount=${amount}&userWalletAddress=${userAddress}&slippagePercent=1`;
     const { data } = await axios.get(OKX_BASE_URL + path, {
       headers: getHeaders('GET', path),
       timeout: 15000,
@@ -55,6 +55,7 @@ export async function getSwapQuote(
         txData: JSON.stringify(data.data[0].tx),
       };
     }
+    console.warn('[OKX] Swap quote failed:', data.code, data.msg);
     return null;
   } catch (err) {
     console.error('OKX swap quote error:', err);

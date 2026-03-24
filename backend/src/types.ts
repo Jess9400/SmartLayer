@@ -66,6 +66,10 @@ export interface Deal {
   alphaFeeAmount?: number;
   alphaFeeTxHash?: string;
 
+  // OKX DEX swap (real yield deployment)
+  swapTxHash?: string;
+  swapToAmount?: string;  // USDC received
+
   // Outcome
   status: 'pitching' | 'analyzing' | 'decided' | 'executing' | 'active' | 'completed' | 'failed';
   actualReturn?: number;

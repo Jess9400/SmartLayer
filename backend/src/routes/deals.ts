@@ -160,6 +160,13 @@ export function createDealRoutes(
 
         if (executed.txHash) {
           broadcast({ type: 'deal_executed', agentId: r.alpha.id, agentName: r.alpha.name, deal: executed, message: `${r.alpha.name} deal executed! TX: ${executed.txHash}`, timestamp: new Date().toISOString() });
+          if (executed.swapTxHash) {
+            broadcast({
+              type: 'agent_message', agentId: beta.id, agentName: beta.name,
+              message: `🔄 OKX DEX swap: XETH → USDC executed on-chain. TX: ${executed.swapTxHash}`,
+              timestamp: new Date().toISOString(),
+            });
+          }
           if (executed.alphaFeeTxHash) {
             const feeXETH = (executed.alphaFeeAmount || 0).toFixed(6);
             broadcast({

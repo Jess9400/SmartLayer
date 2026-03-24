@@ -1,6 +1,7 @@
 import { Deal } from '../types';
-import { executeNativeTransfer, transferToAddress } from '../services/okx';
+import { executeNativeTransfer, transferToAddress, executeSwap } from '../services/okx';
 import { vaultExecute, contractsConfigured } from '../services/contracts';
+import { TOKENS } from '../utils/constants';
 import { ethers } from 'ethers';
 
 const ALPHA_FEE_PERCENT = 0.03;
@@ -32,18 +33,39 @@ export async function executeDeal(
         apyBps
       );
 
+      // After vault settles, swap received XETH → USDC via OKX DEX
+      const investedWei = (amountWei * 97n / 100n).toString();
+      const swapResult = await executeSwap(
+        betaPrivateKey,
+        TOKENS.USDC,
+        TOKENS.NATIVE_ETH,
+        investedWei,
+        betaAddress
+      ).catch(e => { console.warn('[DEX] Swap failed (non-fatal):', e.message); return null; });
+
       return {
         ...deal,
         executed: true,
         txHash: result.txHash,
         alphaFeeAmount: parseFloat(result.feeAmount),
-        alphaFeeTxHash: result.txHash, // same TX — vault splits atomically
+        alphaFeeTxHash: result.txHash,
+        swapTxHash: swapResult || undefined,
+        swapToAmount: swapResult ? 'USDC' : undefined,
         status: 'active',
       };
     }
 
-    // ── Fallback: direct native transfers (no contracts configured) ─────────
-    const txHash = await executeNativeTransfer(betaPrivateKey, amountWei.toString());
+    // ── Fallback: OKX DEX swap (no vault configured) ────────────────────────
+    const swapTxHash = await executeSwap(
+      betaPrivateKey,
+      TOKENS.USDC,
+      TOKENS.NATIVE_ETH,
+      amountWei.toString(),
+      betaAddress
+    ).catch(() => null);
+
+    // If DEX swap fails, fall back to native transfer as proof of execution
+    const txHash = swapTxHash || await executeNativeTransfer(betaPrivateKey, amountWei.toString());
     if (!txHash) return { ...deal, status: 'failed' };
 
     let alphaFeeTxHash: string | undefined;
@@ -60,6 +82,8 @@ export async function executeDeal(
       ...deal,
       executed: true,
       txHash,
+      swapTxHash: swapTxHash || undefined,
+      swapToAmount: swapTxHash ? 'USDC' : undefined,
       alphaFeeAmount,
       alphaFeeTxHash,
       status: 'active',
