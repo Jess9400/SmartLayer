@@ -466,8 +466,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Compressed Hero */}
-      <div className="border-b border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950">
+      {/* Hero — My Portfolio only */}
+      {activePage === 'dashboard' && <div className="border-b border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between gap-8 flex-wrap">
 
@@ -558,7 +558,7 @@ export default function App() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
