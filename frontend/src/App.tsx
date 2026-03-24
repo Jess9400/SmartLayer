@@ -517,7 +517,7 @@ export default function App() {
           vaultBalance={vaultBalance}
           onChainStats={onChainStats ?? undefined}
           userGoal={userGoal}
-          currentDepositXETH={parseFloat(userVaultBalance || '0')}
+          currentDepositXETH={parseFloat(userVaultBalance || vaultBalance || '0')}
           onSetGoal={() => setShowGoalModal(true)}
         />
 
