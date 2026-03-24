@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useBalance, useWriteContract } from 'wagmi';
+import { useAccount, useSendTransaction, useBalance, useWriteContract, useChainId, useSwitchChain } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
+
+const XLAYER_CHAIN_ID = 196;
 import { ChainLinkIcon, CoinsIcon, CheckSuccessIcon } from './Icons';
 
 const VAULT_ABI = [
@@ -36,9 +38,13 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
   const [useVault, setUseVault] = useState(false);
 
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const { data: balance } = useBalance({ address });
   const { sendTransaction } = useSendTransaction();
   const { writeContract } = useWriteContract();
+
+  const isWrongChain = chainId !== XLAYER_CHAIN_ID;
 
   // Fetch contract addresses from backend
   useEffect(() => {
@@ -187,20 +193,38 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
                 : `Your XETH will be delegated to ${agentName}, who will autonomously invest it in yield opportunities on XLayer.`}
             </div>
 
+            {isWrongChain && (
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2 mb-3 text-xs text-orange-400">
+                ⚠️ Your wallet is on the wrong network. SmartLayerVault is deployed on <strong>XLayer Mainnet (Chain ID 196)</strong>. Click below to switch.
+              </div>
+            )}
+
             {errorMsg && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3 text-xs text-red-400">
                 {errorMsg}
               </div>
             )}
 
-            <button
-              onClick={handleDeposit}
-              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              {useVault
-                ? <><ChainLinkIcon size={15} className="text-white" /> Deposit to Vault</>
-                : <><CoinsIcon size={15} className="text-white" /> Delegate to Agent</>}
-            </button>
+            {isWrongChain ? (
+              <button
+                onClick={() => switchChain({ chainId: XLAYER_CHAIN_ID })}
+                disabled={isSwitching}
+                className="w-full py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {isSwitching
+                  ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Switching...</>
+                  : <>⚠️ Switch to XLayer Network</>}
+              </button>
+            ) : (
+              <button
+                onClick={handleDeposit}
+                className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {useVault
+                  ? <><ChainLinkIcon size={15} className="text-white" /> Deposit to Vault</>
+                  : <><CoinsIcon size={15} className="text-white" /> Delegate to Agent</>}
+              </button>
+            )}
           </>
         )}
 
