@@ -12,10 +12,20 @@ interface DealRecord {
   pitcherId?: string;
 }
 
+interface OnChainStats {
+  capitalDeployedEth: number;
+  avgApy: number;
+  projectedAnnualEth: number;
+  winRate: number;
+  totalAccepted: number;
+  totalPitched: number;
+}
+
 interface PerformanceDashboardProps {
   acceptedDeals: DealRecord[];
   totalDealsReceived: number;
   vaultBalance?: string;
+  onChainStats?: OnChainStats;
 }
 
 const ALPHA_SHORT: Record<string, string> = {
@@ -39,20 +49,20 @@ function timeAgo(ts: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived, vaultBalance }: PerformanceDashboardProps) {
-  const totalInvested = acceptedDeals.reduce((s, d) => s + (d.investmentAmount ?? 0), 0);
-  const avgApy = acceptedDeals.length > 0
-    ? acceptedDeals.reduce((s, d) => s + d.apy, 0) / acceptedDeals.length
-    : 0;
-  const projectedAnnual = totalInvested * avgApy / 100;
-  const winRate = totalDealsReceived > 0
-    ? Math.round((acceptedDeals.length / totalDealsReceived) * 100)
-    : 0;
+export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived, vaultBalance, onChainStats }: PerformanceDashboardProps) {
+  // Prefer on-chain data; fall back to in-memory computation
+  const totalInvested   = onChainStats?.capitalDeployedEth  ?? acceptedDeals.reduce((s, d) => s + (d.investmentAmount ?? 0), 0);
+  const avgApy          = onChainStats?.avgApy              ?? (acceptedDeals.length > 0 ? acceptedDeals.reduce((s, d) => s + d.apy, 0) / acceptedDeals.length : 0);
+  const projectedAnnual = onChainStats?.projectedAnnualEth  ?? (totalInvested * avgApy / 100);
+  const winRate         = onChainStats?.winRate             ?? (totalDealsReceived > 0 ? Math.round((acceptedDeals.length / totalDealsReceived) * 100) : 0);
+  const totalAccepted   = onChainStats?.totalAccepted       ?? acceptedDeals.length;
+  const totalPitched    = onChainStats?.totalPitched        ?? totalDealsReceived;
+
   const recent = [...acceptedDeals]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 3);
 
-  const hasData = acceptedDeals.length > 0;
+  const hasData = totalAccepted > 0 || acceptedDeals.length > 0;
 
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-5">
@@ -63,7 +73,7 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
         </h3>
         {hasData && (
           <span className="text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
-            Live · XLayer Mainnet
+            {onChainStats ? '⛓ On-chain · XLayer' : 'Live · XLayer Mainnet'}
           </span>
         )}
       </div>
@@ -94,7 +104,7 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
           {
             icon: <TrophyIcon size={14} className="text-yellow-400" />,
             value: hasData ? `${winRate}%` : '—',
-            unit: `${acceptedDeals.length}/${totalDealsReceived}`,
+            unit: `${totalAccepted}/${totalPitched}`,
             label: 'Deal Win Rate',
             color: hasData ? 'text-yellow-400' : 'text-gray-600',
           },

@@ -72,6 +72,42 @@ app.get('/api/vault/balance', async (_req, res) => {
   }
 });
 
+app.get('/api/vault/stats', async (_req, res) => {
+  try {
+    const alphaIds = ALPHA_AGENTS.map(a => a.id);
+    const { getOnChainLeaderboard } = await import('./services/contracts');
+    const entries = await getOnChainLeaderboard(alphaIds);
+    const valid = entries.filter(Boolean) as NonNullable<typeof entries[number]>[];
+
+    // Aggregate across all alphas
+    const totalAccepted      = valid.reduce((s, e) => s + e.totalAccepted, 0);
+    const totalPitched       = valid.reduce((s, e) => s + e.totalPitched, 0);
+    const totalFeesEth       = valid.reduce((s, e) => s + e.totalFeesEarned, 0);
+    const capitalDeployedEth = valid.reduce((s, e) => s + e.totalInvestedEth, 0);
+
+    // Weighted avg APY: sum(avgApy * accepted) / totalAccepted
+    const weightedApy = totalAccepted > 0
+      ? valid.reduce((s, e) => s + (e.avgApy * e.totalAccepted), 0) / totalAccepted
+      : 0;
+
+    const projectedAnnual = capitalDeployedEth * weightedApy / 100;
+    const winRate         = totalPitched > 0 ? Math.round((totalAccepted / totalPitched) * 100) : 0;
+
+    res.json({
+      capitalDeployedEth: parseFloat(capitalDeployedEth.toFixed(8)),
+      avgApy:             parseFloat(weightedApy.toFixed(2)),
+      projectedAnnualEth: parseFloat(projectedAnnual.toFixed(8)),
+      winRate,
+      totalAccepted,
+      totalPitched,
+      totalFeesEth:       parseFloat(totalFeesEth.toFixed(8)),
+      source:             'onchain',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to fetch on-chain stats' });
+  }
+});
+
 // Debug: check vault state on-chain
 app.get('/api/vault/debug', async (_req, res) => {
   try {

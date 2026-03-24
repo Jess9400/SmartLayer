@@ -13,7 +13,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
 
 interface AgentState {
   id: string;
@@ -127,6 +127,7 @@ export default function App() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [rebalancerStatus, setRebalancerStatus] = useState<{ running: boolean; lastRunAt?: string; rebalanceCount?: number; activePositions?: number } | null>(null);
   const [isRebalancing, setIsRebalancing] = useState(false);
+  const [onChainStats, setOnChainStats] = useState<{ capitalDeployedEth: number; avgApy: number; projectedAnnualEth: number; winRate: number; totalAccepted: number; totalPitched: number } | null>(null);
 
   const { isConnected } = useAccount();
 
@@ -214,6 +215,15 @@ export default function App() {
     }
   }
 
+  async function loadOnChainStats() {
+    try {
+      const data = await getVaultStats();
+      if (!data.error) setOnChainStats(data);
+    } catch (e) {
+      console.error('[loadOnChainStats]', e);
+    }
+  }
+
   async function loadRebalancerStatus() {
     try {
       const data = await getRebalancerStatus();
@@ -234,7 +244,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance(), loadPositions(), loadRebalancerStatus()])
+    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance(), loadPositions(), loadRebalancerStatus(), loadOnChainStats()])
       .finally(() => setIsLoading(false));
     const interval = setInterval(() => {
       loadAgents();
@@ -242,6 +252,7 @@ export default function App() {
       loadVaultBalance();
       loadPositions();
       loadRebalancerStatus();
+      loadOnChainStats();
     }, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -253,7 +264,7 @@ export default function App() {
     setRoundCount(prev => prev + 1);
     try {
       await startDealRound();
-      await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance(), loadPositions()]);
+      await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance(), loadPositions(), loadOnChainStats()]);
     } finally {
       setIsRunning(false);
       setActiveAlphaIds(new Set());
@@ -468,6 +479,7 @@ export default function App() {
           acceptedDeals={(beta?.memory?.dealsAccepted ?? []) as any[]}
           totalDealsReceived={betaReceived}
           vaultBalance={vaultBalance}
+          onChainStats={onChainStats ?? undefined}
         />
 
         {/* PRIMARY: Action + Live Activity */}

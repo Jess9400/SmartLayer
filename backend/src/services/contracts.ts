@@ -127,15 +127,17 @@ export async function getOnChainLeaderboard(alphaIds: string[]) {
       const totalAccepted = Number(stats.totalAccepted);
       const sumApyBps     = Number(stats.sumApyBps);
       const feesWei       = BigInt(stats.totalFeesEarnedWei.toString());
+      const investedWei = BigInt(stats.totalInvestedWei.toString());
       return {
-        agentId:         alphaId,
-        reputationScore: Number(score),
+        agentId:           alphaId,
+        reputationScore:   Number(score),
         totalPitched,
         totalAccepted,
-        winRate:         totalPitched > 0 ? Math.round((totalAccepted / totalPitched) * 100) : 0,
-        avgApy:          totalAccepted > 0 ? Math.round((sumApyBps / totalAccepted) / 10) / 10 : 0,
-        totalFeesEarned: parseFloat(ethers.formatEther(feesWei)),
-        source:          'onchain' as const,
+        winRate:           totalPitched > 0 ? Math.round((totalAccepted / totalPitched) * 100) : 0,
+        avgApy:            totalAccepted > 0 ? Math.round((sumApyBps / totalAccepted) / 10) / 10 : 0,
+        totalFeesEarned:   parseFloat(ethers.formatEther(feesWei)),
+        totalInvestedEth:  parseFloat(ethers.formatEther(investedWei)),
+        source:            'onchain' as const,
       };
     } catch (e) {
       console.warn(`[chain] Failed to fetch stats for ${alphaId}:`, e instanceof Error ? e.message : e);
