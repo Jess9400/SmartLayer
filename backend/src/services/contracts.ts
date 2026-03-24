@@ -1,18 +1,11 @@
 import { ethers } from 'ethers';
-import * as fs from 'fs';
-import * as path from 'path';
+import AgentRegistryArtifact from '../abi/AgentRegistry.json';
+import ReputationRegistryArtifact from '../abi/ReputationRegistry.json';
+import SmartLayerVaultArtifact from '../abi/SmartLayerVault.json';
 
-// Load ABIs from bundled abi/ directory (works on Railway and locally)
-const ABI_DIR = path.join(__dirname, '../abi');
-
-function loadAbi(contractName: string) {
-  const file = path.join(ABI_DIR, `${contractName}.json`);
-  return JSON.parse(fs.readFileSync(file, 'utf-8')).abi;
-}
-
-const AGENT_REGISTRY_ABI     = loadAbi('AgentRegistry');
-const REPUTATION_REGISTRY_ABI = loadAbi('ReputationRegistry');
-const VAULT_ABI               = loadAbi('SmartLayerVault');
+const AGENT_REGISTRY_ABI      = AgentRegistryArtifact.abi;
+const REPUTATION_REGISTRY_ABI = ReputationRegistryArtifact.abi;
+const VAULT_ABI               = SmartLayerVaultArtifact.abi;
 
 const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
 
