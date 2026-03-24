@@ -35,6 +35,27 @@ function writeAll(positions: Position[]) {
 
 export function savePosition(position: Omit<Position, 'id'>): Position {
   const all = readAll();
+
+  // If an active position already exists for the same adapter+token, consolidate
+  const existing = all.find(
+    p => p.status === 'active' &&
+         p.adapterUsed === position.adapterUsed &&
+         p.token.symbol === position.token.symbol
+  );
+
+  if (existing) {
+    const combined: Position = {
+      ...existing,
+      amountDeposited: (parseFloat(existing.amountDeposited) + parseFloat(position.amountDeposited)).toFixed(6),
+      amountDepositedRaw: (BigInt(existing.amountDepositedRaw || '0') + BigInt(position.amountDepositedRaw || '0')).toString(),
+      entryAPY: position.entryAPY, // update to latest APY
+      depositTxHash: position.depositTxHash, // update to latest TX
+      lastCheckedAt: new Date().toISOString(),
+    };
+    writeAll(all.map(p => p.id === existing.id ? combined : p));
+    return combined;
+  }
+
   const record: Position = { ...position, id: uuid() };
   writeAll([...all, record]);
   return record;
