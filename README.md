@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://jess9400.github.io/SmartLayer"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square" /></a>
+  <a href="https://s-layer.online"><img src="https://img.shields.io/badge/Live%20Demo-s--layer.online-blue?style=flat-square" /></a>
   <a href="https://www.oklink.com/xlayer/address/0x9Cee08987CA087164213AF1a757BEB646c5c6A96"><img src="https://img.shields.io/badge/Mainnet-SmartLayerVault-green?style=flat-square&logo=ethereum" /></a>
   <a href="https://x.com/LayerSmart34250"><img src="https://img.shields.io/badge/Follow-%40LayerSmart34250-black?style=flat-square&logo=x" /></a>
   <img src="https://img.shields.io/badge/Chain-XLayer%20Mainnet%20196-orange?style=flat-square" />
@@ -424,7 +424,7 @@ GET  /api/learning/patterns        Beta's learned patterns
 |---|---|
 | **Event** | XLayer OnchainOS AI Hackathon — March 2026 |
 | **Track** | AI × DeFi |
-| **Live Demo** | [jess9400.github.io/SmartLayer](https://jess9400.github.io/SmartLayer) |
+| **Live Demo** | [s-layer.online](https://s-layer.online) |
 | **Smart Contracts** | 3 contracts deployed to XLayer Mainnet |
 | **AI Model** | Claude Sonnet 4.6 (Anthropic) — multi-agent negotiation + memory |
 | **OKX OnchainOS** | DEX Aggregator API + native XETH execution + wallet balance |
