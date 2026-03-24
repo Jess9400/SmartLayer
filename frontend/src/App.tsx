@@ -462,7 +462,7 @@ export default function App() {
                 <span className="text-green-400">The Best Deal Executes On-Chain.</span>
               </h1>
               <p className="text-gray-400 text-sm mb-4 leading-relaxed max-w-lg">
-                3 AI agents compete to find you the best <strong className="text-gray-200">DeFi yield farming</strong> opportunity. Your personal Beta agent — powered by Claude AI — scores every pitch and automatically executes the winner on XLayer. <strong className="text-gray-200">Real transactions. Real yield. Zero manual work.</strong>
+                Competing AI agents pitch the best <strong className="text-gray-200">DeFi yield farming</strong> opportunities. Your personal Beta agent — powered by Claude AI — scores every pitch and automatically executes the winner on XLayer. <strong className="text-gray-200">Real transactions. Real yield. Zero manual work.</strong>
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {isConnected ? (
