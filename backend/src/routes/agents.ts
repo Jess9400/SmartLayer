@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
+import { ethers } from 'ethers';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
-import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha } from '../memory/store';
+import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha, saveCustomAlpha } from '../memory/store';
+import { contractsConfigured, registerAlphaOnChain } from '../services/contracts';
 import { AGENT_IDS } from '../utils/constants';
 
 const router = Router();
@@ -37,6 +39,61 @@ export function createAgentRoutes(alphas: AlphaAgent[], beta: BetaAgent) {
     if (!alphaId) { res.status(400).json({ error: 'alphaId required' }); return; }
     unsubscribeFromAlpha(AGENT_IDS.BETA, alphaId);
     res.json({ success: true, subscribedAlphaIds: getBetaSubscriptions() });
+  });
+
+  // Register a new external Alpha agent
+  router.post('/register-alpha', async (req: Request, res: Response) => {
+    const { name, pitchStyle, feeAddress } = req.body;
+
+    if (!name || !pitchStyle || !feeAddress) {
+      res.status(400).json({ error: 'name, pitchStyle, and feeAddress are required' });
+      return;
+    }
+
+    if (!ethers.isAddress(feeAddress)) {
+      res.status(400).json({ error: 'feeAddress must be a valid Ethereum address' });
+      return;
+    }
+
+    // Generate a unique alphaId from the name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 20);
+    const alphaId = `agent-alpha-${slug}-${Date.now().toString(36)}`;
+
+    let txHash: string | undefined;
+
+    // Register on-chain if contracts are configured
+    if (contractsConfigured()) {
+      try {
+        const ownerKey = process.env.AGENT_ALPHA_PRIVATE_KEY!;
+        txHash = await registerAlphaOnChain(ownerKey, alphaId, name, pitchStyle, feeAddress);
+        console.log(`[chain] Registered Alpha ${name} (${alphaId}): ${txHash}`);
+      } catch (e: any) {
+        console.warn('[chain] Alpha registration failed (non-fatal):', e.message);
+      }
+    }
+
+    // Create the agent instance using the platform key (fees go to feeAddress via contract)
+    const alphaKey = process.env.AGENT_ALPHA_PRIVATE_KEY || '';
+    const newAlpha = new AlphaAgent(alphaKey, alphaId, name, 'External Alpha', pitchStyle);
+    await newAlpha.init();
+
+    // Add to live alphas array (mutates the array passed into this factory — routes see it immediately)
+    alphas.push(newAlpha);
+
+    // Persist so it survives restart
+    saveCustomAlpha({ id: alphaId, name, pitchStyle, feeAddress, registeredAt: new Date().toISOString(), txHash });
+
+    // Auto-subscribe Beta to the new Alpha
+    subscribeToAlpha(AGENT_IDS.BETA, alphaId);
+
+    res.json({
+      success: true,
+      alphaId,
+      name,
+      feeAddress,
+      txHash: txHash || null,
+      subscribedAlphaIds: getBetaSubscriptions(),
+    });
   });
 
   router.get('/:id', async (req: Request, res: Response) => {

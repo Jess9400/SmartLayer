@@ -43,6 +43,19 @@ export async function getSubscriptionsOnChain(betaAddress: string): Promise<stri
   });
 }
 
+export async function registerAlphaOnChain(
+  ownerPrivateKey: string,
+  alphaId: string,
+  name: string,
+  pitchStyle: string,
+  feeAddress: string
+): Promise<string> {
+  const { registry } = getContracts(ownerPrivateKey);
+  const tx = await registry.registerAlpha(toBytes32(alphaId), name, pitchStyle, feeAddress);
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
 export async function subscribeOnChain(betaPrivateKey: string, alphaId: string): Promise<string> {
   const { registry } = getContracts(betaPrivateKey);
   const tx = await registry.subscribe(toBytes32(alphaId));

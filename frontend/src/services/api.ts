@@ -67,3 +67,12 @@ export async function unsubscribeFromAlpha(alphaId: string) {
   });
   return res.json();
 }
+
+export async function registerAlpha(name: string, pitchStyle: string, feeAddress: string) {
+  const res = await fetch(`${BASE}/agents/register-alpha`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, pitchStyle, feeAddress }),
+  });
+  return res.json();
+}

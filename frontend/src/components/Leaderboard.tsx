@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { subscribeToAlpha, unsubscribeFromAlpha, getDealHistory } from '../services/api';
 import { TrophyIcon, RankBadge, CheckCircleIcon, XCircleIcon, RefreshCwIcon, ChainLinkIcon } from './Icons';
+import RegisterAlphaModal from './RegisterAlphaModal';
 
 interface LeaderboardEntry {
   agentId: string;
@@ -57,6 +58,7 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
   const [historyMap, setHistoryMap] = useState<Record<string, DealRecord[]>>({});
   const [loadingHistory, setLoadingHistory] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showRegister, setShowRegister] = useState(false);
 
   const toggleExpand = useCallback(async (agentId: string) => {
     if (expandedId === agentId) {
@@ -90,12 +92,20 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-6">
-        <h3 className="font-bold text-white mb-1 flex items-center gap-2">
-          <TrophyIcon size={16} className="text-yellow-400" /> Alpha Agent Leaderboard
-        </h3>
-        <p className="text-gray-500 text-sm">Run deal rounds to build Alpha agent track records.</p>
-      </div>
+      <>
+        {showRegister && <RegisterAlphaModal onClose={() => setShowRegister(false)} onRegistered={(ids) => { onSubscriptionChange(ids); setShowRegister(false); }} />}
+        <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-6">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <TrophyIcon size={16} className="text-yellow-400" /> Alpha Agent Leaderboard
+            </h3>
+            <button onClick={() => setShowRegister(true)} className="text-xs bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 rounded-lg px-3 py-1.5 transition-colors">
+              + Register Alpha
+            </button>
+          </div>
+          <p className="text-gray-500 text-sm">Run deal rounds to build Alpha agent track records.</p>
+        </div>
+      </>
     );
   }
 
@@ -108,9 +118,17 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">Reputation built from on-chain track record · Subscribe to choose who pitches to your agent</p>
         </div>
-        <div className="text-xs text-gray-500 text-right">
-          <div>{subscribedIds.length} agent{subscribedIds.length !== 1 ? 's' : ''} active</div>
-          <div>3% fee on accepted deals</div>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-gray-500 text-right">
+            <div>{subscribedIds.length} agent{subscribedIds.length !== 1 ? 's' : ''} active</div>
+            <div>3% fee on accepted deals</div>
+          </div>
+          <button
+            onClick={() => setShowRegister(true)}
+            className="text-xs bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 border border-purple-500/30 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap"
+          >
+            + Register Alpha
+          </button>
         </div>
       </div>
 
@@ -241,6 +259,13 @@ export default function Leaderboard({ entries, subscribedIds, onSubscriptionChan
       <p className="text-xs text-gray-600 mt-3 text-center">
         Score = win rate (50%) + deal volume (25%) + APY quality (15%) + recent activity (10%) · All deals verifiable on XLayer
       </p>
+
+      {showRegister && (
+        <RegisterAlphaModal
+          onClose={() => setShowRegister(false)}
+          onRegistered={(ids) => { onSubscriptionChange(ids); setShowRegister(false); }}
+        />
+      )}
     </div>
   );
 }

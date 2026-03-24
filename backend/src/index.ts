@@ -11,6 +11,7 @@ import { createLearningRoutes } from './routes/learning';
 import { WSMessage } from './types';
 import { ALPHA_AGENTS } from './utils/constants';
 import { contractsConfigured, setupVaultDemo, toBytes32, getVaultBalance } from './services/contracts';
+import { loadCustomAlphas } from './memory/store';
 import { ethers } from 'ethers';
 
 const app = express();
@@ -23,12 +24,12 @@ app.use(express.json());
 // Init Beta agent
 const beta = new BetaAgent(process.env.AGENT_BETA_PRIVATE_KEY || '');
 
-// Init 3 competing Alpha agents — all share the same private key for demo
-// In production each would have their own wallet
+// Init 3 built-in Alpha agents + any custom registered Alphas
 const alphaPrivateKey = process.env.AGENT_ALPHA_PRIVATE_KEY || '';
-const alphas = ALPHA_AGENTS.map(cfg =>
-  new AlphaAgent(alphaPrivateKey, cfg.id, cfg.name, cfg.role, cfg.pitchStyle)
-);
+const alphas: AlphaAgent[] = [
+  ...ALPHA_AGENTS.map(cfg => new AlphaAgent(alphaPrivateKey, cfg.id, cfg.name, cfg.role, cfg.pitchStyle)),
+  ...loadCustomAlphas().map(cfg => new AlphaAgent(alphaPrivateKey, cfg.id, cfg.name, 'External Alpha', cfg.pitchStyle)),
+];
 
 // WebSocket broadcast
 function broadcast(msg: WSMessage) {

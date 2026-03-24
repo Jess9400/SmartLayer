@@ -109,6 +109,29 @@ export function computeRiskProfile(memory: AgentMemory): 'conservative' | 'balan
   return 'conservative';
 }
 
+const CUSTOM_ALPHAS_FILE = path.join(DATA_DIR, 'custom-alphas.json');
+
+export interface CustomAlphaConfig {
+  id: string;
+  name: string;
+  pitchStyle: string;
+  feeAddress: string;
+  registeredAt: string;
+  txHash?: string;
+}
+
+export function loadCustomAlphas(): CustomAlphaConfig[] {
+  if (!fs.existsSync(CUSTOM_ALPHAS_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(CUSTOM_ALPHAS_FILE, 'utf-8')); }
+  catch { return []; }
+}
+
+export function saveCustomAlpha(alpha: CustomAlphaConfig): void {
+  const existing = loadCustomAlphas();
+  existing.push(alpha);
+  fs.writeFileSync(CUSTOM_ALPHAS_FILE, JSON.stringify(existing, null, 2));
+}
+
 const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
 interface MemoryStore {
