@@ -5,7 +5,7 @@
 <h1 align="center">SmartLayer</h1>
 
 <p align="center">
-  <strong>Your personal AI investment agent — on XLayer</strong>
+  <strong>AI agents compete to manage your capital — the best deal executes on-chain automatically.</strong>
 </p>
 
 <p align="center">
@@ -15,6 +15,12 @@
   <img src="https://img.shields.io/badge/AI-Claude%20Sonnet%204.6-purple?style=flat-square" />
   <img src="https://img.shields.io/badge/Hackathon-XLayer%20OnchainOS%20AI-red?style=flat-square" />
 </p>
+
+---
+
+> 🎥 **[Watch Demo Video](#)** ← link coming
+>
+> 🔗 **Proof of Execution:** [0xb16861...88d1](https://www.oklink.com/xlayer/tx/0xb16861160a10fe75db88c054226b2d594fe3c879d5a597cbb936a3e4dc4488d1) · [0x21f3c2...a09f6](https://www.oklink.com/xlayer/tx/0x21f3c2b019250568c95d2a8dd72125a6cb2d9225d8cddf08a4b1d6279a7a09f6) · [0x19b098...350d0](https://www.oklink.com/xlayer/tx/0x19b098f332c05f45cbef8a5c3ffc8423e916b75b83f5720b0c4e2d3cf0d350d0) — real agent deals on XLayer Mainnet
 
 ---
 
@@ -63,8 +69,23 @@ Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. 
 
 - Analyzes every pitch: protocol credibility, APY, TVL, smart contract risk, macro context
 - Learns your **risk profile** (conservative / balanced / aggressive) from deal history
+- References **memory of past deals** — "Last time we accepted this protocol at 8.4% APY, it performed. Accepting again."
 - Allocates capital **proportionally**: `60% analysis score + 40% on-chain reputation`
 - Sends a **3% performance fee** to Alpha on every executed deal (enforced by SmartLayerVault)
+
+---
+
+## Proof of On-Chain Activity
+
+All agent deal executions are verifiable on XLayer Mainnet via OKLink:
+
+| Deal | Protocol | Result | TX |
+|------|----------|--------|----|
+| Vault 97/3 split confirmed | SmartLayerVault | ✓ Executed | [0xb16861...88d1](https://www.oklink.com/xlayer/tx/0xb16861160a10fe75db88c054226b2d594fe3c879d5a597cbb936a3e4dc4488d1) |
+| Alpha Nexus — Izumi Finance WETH-WOKB 14.7% APY | Izumi Finance | ✓ Accepted + 3% fee | [0x21f3c2...a09f6](https://www.oklink.com/xlayer/tx/0x21f3c2b019250568c95d2a8dd72125a6cb2d9225d8cddf08a4b1d6279a7a09f6) |
+| Alpha Quant — Curve WETH-WOKB 9.4% APY | Curve | ✓ Accepted + 3% fee | [0x19b098...350d0](https://www.oklink.com/xlayer/tx/0x19b098f332c05f45cbef8a5c3ffc8423e916b75b83f5720b0c4e2d3cf0d350d0) |
+
+Every execution: 97% goes to the deal destination, 3% fee goes to the winning Alpha agent — atomically in one vault transaction.
 
 ---
 
@@ -85,14 +106,29 @@ Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. 
 
 ### AgentRegistry
 
-- Registers Alpha agents by `bytes32` ID — multiple agents can share a wallet in demo mode
+- Registers Alpha agents by `bytes32` ID
 - Beta agents subscribe/unsubscribe to control which Alphas can pitch to them
+- **Demo mode note:** In this hackathon demo, all 3 Alpha agents share one deployer wallet for simplicity. In production, each Alpha agent (deployed by a protocol or fund) would have its own isolated wallet and identity.
 
 ### ReputationRegistry
 
 - Records every deal outcome on-chain
 - Computes reputation score (0–100): win rate, volume, APY quality, recency
 - Only callable by the Vault (enforced atomically) or the contract owner
+
+---
+
+## OKX OnchainOS Integration
+
+SmartLayer uses the following OKX OnchainOS capabilities:
+
+| API | Usage |
+|-----|-------|
+| **DEX Aggregator API** (`/api/v5/dex/aggregator/swap`) | Get optimal swap routes and execute token swaps via OKX DEX aggregator on XLayer |
+| **Wallet API** (XLayer RPC via OnchainOS) | Query native XETH balances for all agent wallets before each deal round |
+| **Native Transfer API** | Execute 97% deal allocation + 3% Alpha performance fee as on-chain XETH transfers |
+
+The OKX DEX Aggregator is called in `backend/src/services/okx.ts` — it provides swap quotes with optimal routing across XLayer liquidity pools, then executes the signed transaction on-chain. The 3% fee model uses OKX's native transfer capability to send performance fees directly to Alpha agent wallets on every accepted deal.
 
 ---
 
@@ -134,10 +170,10 @@ This creates a **permissionless, AI-filtered investment marketplace** where trac
 | Smart Contracts | Solidity 0.8.24 + Hardhat |
 | Backend | Node.js + TypeScript + Express + WebSocket |
 | Frontend | React + Vite + Tailwind CSS |
-| Wallet Connect | RainbowKit + wagmi v2 + viem |
+| Wallet | wagmi v2 + viem (OKX Wallet, MetaMask) |
 | Blockchain | XLayer Mainnet (Chain ID: 196) |
 | Yield Data | DeFiLlama API |
-| DEX | OKX OnchainOS DEX API |
+| DEX | OKX OnchainOS DEX Aggregator API |
 
 ---
 
@@ -177,6 +213,24 @@ This creates a **permissionless, AI-filtered investment marketplace** where trac
 
 ---
 
+## Future Roadmap
+
+SmartLayer is early-stage infrastructure for an AI-powered investment marketplace:
+
+| Phase | Feature |
+|-------|---------|
+| **V2** | Any protocol deploys their own Alpha agent — permissionless Alpha marketplace |
+| **V2** | Per-protocol Alpha wallets — full economic isolation, no shared keys |
+| **V2** | User-configurable Beta risk profiles (max APY, max allocation per deal, blocked protocols) |
+| **V3** | Realized yield tracking — Beta verifies actual returns against projected APY |
+| **V3** | Multi-chain Alpha agents (Ethereum, Arbitrum, Base pitching to XLayer Beta) |
+| **V3** | Alpha agent staking — Alphas stake to pitch, lose stake on repeated bad deals |
+| **V4** | Open Beta marketplace — any user deploys a personal Beta agent, subscribes to any Alpha |
+
+The long-term vision: a **permissionless, reputation-gated investment network** where the best yield sources compete for user capital, and AI agents handle all execution — with the blockchain as the source of truth for every decision.
+
+---
+
 ## Project Structure
 
 ```
@@ -201,7 +255,7 @@ SmartLayer/
 └── frontend/
     └── src/
         ├── components/      # AgentCard, ChatWindow, DealAnalysis,
-        │                    # Leaderboard, DepositModal
+        │                    # Leaderboard, DepositModal, PerformanceDashboard
         ├── hooks/           # WebSocket live updates
         └── services/        # API client
 ```
@@ -293,10 +347,11 @@ GET  /api/learning/patterns        Beta's learned patterns
 | **Track** | AI × DeFi |
 | **Live Demo** | [jess9400.github.io/SmartLayer](https://jess9400.github.io/SmartLayer) |
 | **Smart Contracts** | 3 contracts deployed to XLayer Mainnet |
-| **AI Model** | Claude Sonnet 4.6 (Anthropic) — multi-agent negotiation |
-| **OKX OnchainOS** | DEX API + native XETH execution |
-| **Multi-agent** | 3 Alpha agents competing + 1 Beta agent |
+| **AI Model** | Claude Sonnet 4.6 (Anthropic) — multi-agent negotiation + memory |
+| **OKX OnchainOS** | DEX Aggregator API + native XETH execution + wallet balance |
+| **Multi-agent** | 3 competing Alpha agents + 1 personal Beta agent |
 | **On-chain reputation** | Verifiable deal history, scores, and fee payments |
+| **Confirmed TX** | [0xb16861...88d1](https://www.oklink.com/xlayer/tx/0xb16861160a10fe75db88c054226b2d594fe3c879d5a597cbb936a3e4dc4488d1) |
 
 ---
 
