@@ -38,12 +38,17 @@ export async function getYieldOpportunities(chain: string = 'X Layer'): Promise<
         riskLevel: getRiskLevel(pool.apy, pool.tvlUsd),
       }));
 
-    // If no XLayer pools found, return mock data for demo
+    // Always ensure ZeroLend is available as an executable option
+    const hasZeroLend = pools.some(p => p.protocol.toLowerCase() === 'zerolend');
+    if (!hasZeroLend) {
+      pools.unshift(getMockOpportunities()[0]); // ZeroLend is index 0
+    }
+
     if (pools.length === 0) {
       return getMockOpportunities();
     }
 
-    return pools;
+    return pools.slice(0, 10);
   } catch (err) {
     console.error('DeFiLlama API error, using mock data:', err);
     return getMockOpportunities();
@@ -58,6 +63,18 @@ function getRiskLevel(apy: number, tvl: number): 'low' | 'medium' | 'high' {
 
 export function getMockOpportunities(): YieldOpportunity[] {
   return [
+    {
+      protocol: 'ZeroLend',
+      pool: 'USDC',
+      chain: 'X Layer',
+      apy: 4.8,
+      tvl: 2100000,
+      apyBase: 4.8,
+      apyReward: 0,
+      audited: true,
+      riskLevel: 'low',
+      contractAddress: '0xfFd79D05D5dc37E221ed7d3971E75ed5930c6580',
+    },
     {
       protocol: 'Izumi Finance',
       pool: 'WETH-WOKB',
@@ -80,18 +97,6 @@ export function getMockOpportunities(): YieldOpportunity[] {
       apyReward: 10.1,
       audited: false,
       riskLevel: 'medium',
-      contractAddress: '0xe538905cf8410324e03a5a23c1c177a474d59b2b',
-    },
-    {
-      protocol: 'Curve',
-      pool: 'WETH-WOKB',
-      chain: 'X Layer',
-      apy: 9.4,
-      tvl: 1200000,
-      apyBase: 7.1,
-      apyReward: 2.3,
-      audited: true,
-      riskLevel: 'low',
       contractAddress: '0xe538905cf8410324e03a5a23c1c177a474d59b2b',
     },
   ];
