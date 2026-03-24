@@ -563,128 +563,6 @@ export default function App() {
           onSetGoal={() => setShowGoalModal(true)}
         />
 
-        {/* PRIMARY: Action + Live Activity */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={handleNewRound}
-              disabled={isRunning}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
-            >
-              {isRunning ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Running Deal Round...
-                </>
-              ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
-            </button>
-            {isConnected && beta?.walletAddress && (
-              <button
-                onClick={() => setShowDeposit(true)}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
-              >
-                <CoinsIcon size={15} className="text-white" /> Deposit to Agent
-              </button>
-            )}
-            {messages.length > 0 && (
-              <span className="text-gray-600 text-xs">{messages.length} messages</span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-5 gap-6">
-            <div className="col-span-3">
-              <ChatWindow messages={messages} isRunning={isRunning} onStartRound={handleNewRound} />
-            </div>
-            <div className="col-span-2">
-              <DealAnalysis deal={activeDeal as never} />
-            </div>
-          </div>
-        </div>
-
-        {/* LEARNING PANEL */}
-        <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Learning Insights</div>
-          <LearningPanel
-            data={learningData as never}
-            onRunLearning={handleRunLearning}
-            onResetMemory={handleResetMemory}
-            isRunning={isLearning}
-          />
-        </div>
-
-      </>)}
-
-      {activePage === 'agents' && (<>
-
-        {/* SECONDARY: 3 Alpha Agents */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Competing Alpha Agents</span>
-            <span className="text-xs text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5">3 agents · best pitch wins</span>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {isLoading ? [0, 1, 2].map(i => (
-              <div key={i} className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 animate-pulse">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700" />
-                  <div className="space-y-1.5">
-                    <div className="h-3 w-24 bg-gray-700 rounded" />
-                    <div className="h-2 w-16 bg-gray-800 rounded" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="h-2 w-full bg-gray-800 rounded" />
-                  <div className="h-2 w-3/4 bg-gray-800 rounded" />
-                </div>
-              </div>
-            )) : alphas.map((a, i) => {
-              const lb = leaderboard.find(e => e.agentId === a.id) || leaderboard[i] || {};
-              const pitched = a.memory?.dealsPitched?.length ?? 0;
-              const accepted = a.memory?.dealsAccepted?.length ?? 0;
-              return (
-                <AgentCard
-                  key={a.id}
-                  name={a.name}
-                  role={a.role}
-                  balance={a.balance || '0'}
-                  walletAddress={a.walletAddress || ''}
-                  dealsPitched={pitched}
-                  successRate={pitched > 0 ? Math.round((accepted / pitched) * 100) : 0}
-                  isActive={activeAlphaIds.has(a.id)}
-                  side="alpha"
-                  reputationScore={lb.reputationScore}
-                  tagline={ALPHA_TAGLINES[a.id]}
-                  colorScheme={ALPHA_COLORS[a.id] || 'purple'}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Separator */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 border-t border-gray-800" />
-          <span className="text-gray-700 text-xs">60% AI score + 40% on-chain reputation → best pitch wins allocation</span>
-          <div className="flex-1 border-t border-gray-800" />
-        </div>
-
-        {/* Beta Agent Card */}
-        <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
-          <AgentCard
-            name={beta?.name || 'Agent Beta'}
-            role={beta?.role || 'Deal Analyst'}
-            balance={beta?.balance || '0'}
-            walletAddress={beta?.walletAddress || ''}
-            dealsAnalyzed={betaReceived}
-            acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
-            isActive={activeBeta}
-            side="beta"
-            riskProfile={beta?.memory?.riskProfile}
-            vaultBalance={vaultBalance}
-          />
-        </div>
-
         {/* ACTIVE POSITIONS */}
         <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
           <div className="flex items-center justify-between mb-4">
@@ -778,6 +656,128 @@ export default function App() {
               )}
             </div>
           )}
+        </div>
+
+        {/* LEARNING PANEL */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Learning Insights</div>
+          <LearningPanel
+            data={learningData as never}
+            onRunLearning={handleRunLearning}
+            onResetMemory={handleResetMemory}
+            isRunning={isLearning}
+          />
+        </div>
+
+      </>)}
+
+      {activePage === 'agents' && (<>
+
+        {/* PRIMARY: Action + Live Activity */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleNewRound}
+              disabled={isRunning}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
+            >
+              {isRunning ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Running Deal Round...
+                </>
+              ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
+            </button>
+            {isConnected && beta?.walletAddress && (
+              <button
+                onClick={() => setShowDeposit(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm transition-colors border border-gray-700"
+              >
+                <CoinsIcon size={15} className="text-white" /> Deposit to Agent
+              </button>
+            )}
+            {messages.length > 0 && (
+              <span className="text-gray-600 text-xs">{messages.length} messages</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-5 gap-6">
+            <div className="col-span-3">
+              <ChatWindow messages={messages} isRunning={isRunning} onStartRound={handleNewRound} />
+            </div>
+            <div className="col-span-2">
+              <DealAnalysis deal={activeDeal as never} />
+            </div>
+          </div>
+        </div>
+
+        {/* SECONDARY: 3 Alpha Agents */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Competing Alpha Agents</span>
+            <span className="text-xs text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5">3 agents · best pitch wins</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {isLoading ? [0, 1, 2].map(i => (
+              <div key={i} className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 animate-pulse">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-700" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-24 bg-gray-700 rounded" />
+                    <div className="h-2 w-16 bg-gray-800 rounded" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-2 w-full bg-gray-800 rounded" />
+                  <div className="h-2 w-3/4 bg-gray-800 rounded" />
+                </div>
+              </div>
+            )) : alphas.map((a, i) => {
+              const lb = leaderboard.find(e => e.agentId === a.id) || leaderboard[i] || {};
+              const pitched = a.memory?.dealsPitched?.length ?? 0;
+              const accepted = a.memory?.dealsAccepted?.length ?? 0;
+              return (
+                <AgentCard
+                  key={a.id}
+                  name={a.name}
+                  role={a.role}
+                  balance={a.balance || '0'}
+                  walletAddress={a.walletAddress || ''}
+                  dealsPitched={pitched}
+                  successRate={pitched > 0 ? Math.round((accepted / pitched) * 100) : 0}
+                  isActive={activeAlphaIds.has(a.id)}
+                  side="alpha"
+                  reputationScore={lb.reputationScore}
+                  tagline={ALPHA_TAGLINES[a.id]}
+                  colorScheme={ALPHA_COLORS[a.id] || 'purple'}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-800" />
+          <span className="text-gray-700 text-xs">60% AI score + 40% on-chain reputation → best pitch wins allocation</span>
+          <div className="flex-1 border-t border-gray-800" />
+        </div>
+
+        {/* Beta Agent Card */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
+          <AgentCard
+            name={beta?.name || 'Agent Beta'}
+            role={beta?.role || 'Deal Analyst'}
+            balance={beta?.balance || '0'}
+            walletAddress={beta?.walletAddress || ''}
+            dealsAnalyzed={betaReceived}
+            acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
+            isActive={activeBeta}
+            side="beta"
+            riskProfile={beta?.memory?.riskProfile}
+            vaultBalance={vaultBalance}
+          />
         </div>
 
         {/* Leaderboard */}
