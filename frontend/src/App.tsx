@@ -41,6 +41,34 @@ interface RoundResult {
   txHash?: string;
 }
 
+interface Deal {
+  id: string;
+  protocol: string;
+  pool: string;
+  apy: number;
+  decision?: string;
+  txHash?: string;
+  investmentAmount?: number;
+  pitcherId?: string;
+  pitchMessage?: string;
+  analysisResult?: unknown;
+  status?: string;
+  tvl?: number;
+  riskLevel?: string;
+  audited?: boolean;
+  [key: string]: unknown;
+}
+
+interface LeaderboardEntry {
+  agentId: string;
+  reputationScore: number;
+  totalPitched: number;
+  totalAccepted: number;
+  winRate: number;
+  avgApy: number;
+  totalFeesEarned: number;
+}
+
 const ALPHA_TAGLINES: Record<string, string> = {
   'agent-alpha-nexus':   'Aggressive · leads with yield upside',
   'agent-alpha-citadel': 'Conservative · audits and capital safety first',
@@ -63,14 +91,15 @@ export default function App() {
   const [messages, setMessages] = useState<WSMessage[]>([]);
   const [alphas, setAlphas] = useState<AgentState[]>([]);
   const [beta, setBeta] = useState<AgentState | null>(null);
-  const [activeDeal, setActiveDeal] = useState<any>(null);
-  const [learningData, setLearningData] = useState<any>(null);
+  const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+  const [learningData, setLearningData] = useState<unknown>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isLearning, setIsLearning] = useState(false);
   const [activeAlphaIds, setActiveAlphaIds] = useState<Set<string>>(new Set());
   const [activeBeta, setActiveBeta] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [subscribedIds, setSubscribedIds] = useState<string[]>([]);
   const [roundCount, setRoundCount] = useState(0);
   const [txCount, setTxCount] = useState(0);
@@ -87,13 +116,13 @@ export default function App() {
     }
     if (msg.agentId === 'agent-beta') setActiveBeta(true);
     if (msg.type === 'deal_update' || msg.type === 'deal_executed' || msg.type === 'analysis_update') {
-      setActiveDeal(msg.deal);
+      setActiveDeal(msg.deal as Deal);
     }
     if (msg.type === 'deal_executed') {
-      const deal = msg.deal as any;
+      const deal = msg.deal as Deal;
       setTxCount(prev => prev + 1);
       setRoundResult({
-        alphaName: msg.agentName || deal?.alphaId || 'Alpha',
+        alphaName: msg.agentName || (deal?.alphaId as string) || 'Alpha',
         alphaId: msg.agentId || '',
         protocol: deal?.protocol || '',
         apy: deal?.apy || 0,
@@ -104,7 +133,7 @@ export default function App() {
     if (msg.type === 'learning_update' && msg.data) {
       setLearningData(msg.data);
     }
-    if (msg.type === 'deal_update' && (msg.deal as any)?.status === 'decided') {
+    if (msg.type === 'deal_update' && (msg.deal as Deal)?.status === 'decided') {
       setActiveAlphaIds(new Set());
       setActiveBeta(false);
     }
@@ -117,35 +146,41 @@ export default function App() {
       const data = await getAgents();
       setAlphas(data.alphas || []);
       setBeta(data.beta);
-    } catch {}
+    } catch (e) {
+      console.error('[loadAgents]', e);
+    }
   }
 
   async function loadLeaderboard() {
     try {
       const data = await getLeaderboard();
-      setLeaderboard(data);
-    } catch {}
+      setLeaderboard(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('[loadLeaderboard]', e);
+    }
   }
 
   async function loadSubscriptions() {
     try {
       const data = await getSubscriptions();
       setSubscribedIds(data.subscribedAlphaIds || []);
-    } catch {}
+    } catch (e) {
+      console.error('[loadSubscriptions]', e);
+    }
   }
 
   async function loadVaultBalance() {
     try {
       const data = await getVaultBalance();
       setVaultBalance(data.vaultBalance || '0');
-    } catch {}
+    } catch (e) {
+      console.error('[loadVaultBalance]', e);
+    }
   }
 
   useEffect(() => {
-    loadAgents();
-    loadLeaderboard();
-    loadSubscriptions();
-    loadVaultBalance();
+    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance()])
+      .finally(() => setIsLoading(false));
     const interval = setInterval(() => {
       loadAgents();
       loadLeaderboard();
@@ -387,7 +422,7 @@ export default function App() {
               <ChatWindow messages={messages} isRunning={isRunning} onStartRound={handleNewRound} />
             </div>
             <div className="col-span-2">
-              <DealAnalysis deal={activeDeal} />
+              <DealAnalysis deal={activeDeal as never} />
             </div>
           </div>
         </div>
@@ -399,8 +434,22 @@ export default function App() {
             <span className="text-xs text-purple-400 border border-purple-500/30 rounded-full px-2 py-0.5">3 agents · best pitch wins</span>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {alphas.length > 0 ? alphas.map((a, i) => {
-              const lb = leaderboard.find(e => e.id === a.id) || leaderboard[i] || {};
+            {isLoading ? [0, 1, 2].map(i => (
+              <div key={i} className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 animate-pulse">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-700" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-24 bg-gray-700 rounded" />
+                    <div className="h-2 w-16 bg-gray-800 rounded" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-2 w-full bg-gray-800 rounded" />
+                  <div className="h-2 w-3/4 bg-gray-800 rounded" />
+                </div>
+              </div>
+            )) : alphas.map((a, i) => {
+              const lb = leaderboard.find(e => e.agentId === a.id) || leaderboard[i] || {};
               const pitched = a.memory?.dealsPitched?.length ?? 0;
               const accepted = a.memory?.dealsAccepted?.length ?? 0;
               return (
@@ -419,18 +468,7 @@ export default function App() {
                   colorScheme={ALPHA_COLORS[a.id] || 'purple'}
                 />
               );
-            }) : ['Alpha Nexus', 'Alpha Citadel', 'Alpha Quant'].map((name, i) => (
-              <AgentCard
-                key={name}
-                name={name}
-                role="Loading..."
-                balance="0"
-                walletAddress=""
-                isActive={false}
-                side="alpha"
-                colorScheme={(['orange', 'blue', 'cyan'] as const)[i]}
-              />
-            ))}
+            })}
           </div>
         </div>
 
@@ -461,7 +499,7 @@ export default function App() {
           <div className="col-span-3">
             <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Beta Learning</div>
             <LearningPanel
-              data={learningData}
+              data={learningData as never}
               onRunLearning={handleRunLearning}
               isRunning={isLearning}
             />

@@ -39,6 +39,14 @@ export class BetaAgent extends BaseAgent {
 
   async analyzeDeal(deal: Deal, balance: string): Promise<Deal> {
     const memory = getAgentMemory(this.id);
+
+    // Update thresholds from learned patterns — not hardcoded anymore
+    const patterns = memory.patterns?.acceptancePatterns;
+    if (patterns) {
+      this.minApyThreshold = patterns.minApy ?? this.minApyThreshold;
+      this.riskTolerance = (patterns.riskTolerance as 'low' | 'medium' | 'high') ?? this.riskTolerance;
+    }
+
     const avgYield = await getAvgStableYield();
 
     const similarDeals = memory.dealsReceived

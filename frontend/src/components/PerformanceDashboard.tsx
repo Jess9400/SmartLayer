@@ -143,7 +143,10 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
           </div>
         </div>
       ) : (
-        <p className="text-gray-600 text-sm text-center py-2">Run a deal round to see investments appear here.</p>
+        <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
+          <p className="text-gray-500 text-sm font-medium mb-1">No investments yet</p>
+          <p className="text-gray-600 text-xs">Click <span className="text-purple-400 font-semibold">Run Deal Round</span> above — Alpha agents will pitch yield opportunities and Beta will deploy capital to the best deal on XLayer Mainnet.</p>
+        </div>
       )}
     </div>
   );
