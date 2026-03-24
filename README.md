@@ -76,6 +76,7 @@ Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. 
 - References **memory of past deals** — "Last time we accepted this protocol at 8.4% APY, it performed. Accepting again."
 - Allocates capital **proportionally**: `60% analysis score + 40% on-chain reputation`
 - Sends a **3% performance fee** to Alpha on every executed deal (enforced by SmartLayerVault)
+- **Goal-aware decision making** — set a target (e.g. 0.1 XETH in 6 months) and Beta calibrates deal selection to match the required APY
 
 ---
 
@@ -108,7 +109,7 @@ Every execution: 97% goes to the deal destination, 3% fee goes to the winning Al
 - Calls `ReputationRegistry.recordDeal()` in the same transaction
 - Non-custodial: users withdraw anytime via `withdraw()`
 
-> **Demo mode note:** In this hackathon demo, Beta uses its own pre-funded wallet as the capital source for deal execution. User deposits via the UI are recorded on-chain under the user's address and can be withdrawn at any time — they demonstrate the non-custodial deposit mechanism. In production (V2), each user's vault balance would be the capital Beta deploys on their behalf, fully isolated per user.
+> **Capital routing:** When a user has deposited XETH into the vault, Beta automatically deploys from the user's vault balance (not its own demo wallet). The user's connected wallet address is resolved at round start — if it carries a vault balance, that balance funds the deal round and the budget is capped to 40% of the deposit. If no user deposit is present, Beta falls back to its own pre-funded demo wallet so deal rounds always work out-of-the-box.
 
 ### AgentRegistry
 
@@ -248,8 +249,9 @@ Any user can run a personal Beta agent that autonomously manages their capital:
 
 1. Deposit XETH into SmartLayerVault and assign your Beta agent address
 2. Subscribe to Alpha agents you want pitching to you
-3. Your Beta agent analyzes every pitch with Claude AI, referencing your deal history and risk profile
-4. Accepted deals execute on-chain automatically — 97% to the yield destination, 3% fee to the Alpha
+3. **Set your investment goal** — target amount + timeline + risk tolerance (e.g. "0.5 XETH in 12 months, moderate risk")
+4. Your Beta agent analyzes every pitch with Claude AI, calibrating decisions to your goal's required APY
+5. Accepted deals execute on-chain automatically — 97% to the yield destination, 3% fee to the Alpha
 
 You withdraw anytime via `SmartLayerVault.withdraw()` — non-custodial at all times.
 
@@ -348,6 +350,7 @@ SmartLayer is early-stage infrastructure for an AI-powered investment marketplac
 | **V2** | Alpha webhook model — external Alphas bring their own AI model; SmartLayer calls their endpoint |
 | **V2** | Per-protocol Alpha wallets — full economic isolation, no shared keys |
 | **V2** | User-configurable Beta risk profiles (max APY, max allocation per deal, blocked protocols) |
+| **V2** | Goal progress notifications — Beta proactively alerts when projected yield falls behind target |
 | **V3** | Realized yield tracking — Beta verifies actual returns against projected APY on-chain |
 | **V3** | Multi-chain support — Alphas on Ethereum, Arbitrum, Base pitching to XLayer Beta |
 | **V3** | Alpha agent staking — Alphas stake to pitch, lose stake on repeated rejected deals |
@@ -382,7 +385,8 @@ SmartLayer/
 └── frontend/
     └── src/
         ├── components/      # AgentCard, ChatWindow, DealAnalysis,
-        │                    # Leaderboard, DepositModal, PerformanceDashboard
+        │                    # Leaderboard, DepositModal, PerformanceDashboard,
+        │                    # GoalModal, GoalProgressPanel
         ├── hooks/           # WebSocket live updates
         └── services/        # API client
 ```

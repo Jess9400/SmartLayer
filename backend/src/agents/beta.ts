@@ -1,5 +1,5 @@
 import { BaseAgent } from './base';
-import { Deal, AnalysisResult } from '../types';
+import { Deal, AnalysisResult, UserGoal } from '../types';
 import { callClaude, parseJSON } from '../services/claude';
 import { getAgentMemory } from '../memory/store';
 import { BETA_ANALYSIS_PROMPT } from '../utils/prompts';
@@ -37,7 +37,7 @@ export class BetaAgent extends BaseAgent {
     super(AGENT_IDS.BETA, 'Agent Beta', 'Deal Analyst', privateKey);
   }
 
-  async analyzeDeal(deal: Deal, balance: string): Promise<Deal> {
+  async analyzeDeal(deal: Deal, balance: string, userGoal?: UserGoal): Promise<Deal> {
     const memory = getAgentMemory(this.id);
 
     // Update thresholds from learned patterns — not hardcoded anymore
@@ -55,7 +55,29 @@ export class BetaAgent extends BaseAgent {
       .map(d => `${d.protocol} @ ${d.apy}% — ${d.decision || 'pending'}: ${d.decisionReasoning || 'n/a'}`)
       .join('\n') || 'No similar deals in history yet.';
 
+    // Build goal section for prompt
+    let userGoalSection = '';
+    if (userGoal) {
+      const current = parseFloat(balance) || 0;
+      const target = userGoal.targetAmountXETH;
+      const months = userGoal.timelineMonths;
+      let requiredApy = 0;
+      if (current > 0 && target > current && months > 0) {
+        requiredApy = (Math.pow(target / current, 12 / months) - 1) * 100;
+      }
+      const apyStr = requiredApy > 0 ? `${requiredApy.toFixed(1)}%` : 'N/A (target ≤ current deposit or no deposit yet)';
+      const feasibility = requiredApy <= 0 ? '' : requiredApy < 20 ? '(achievable with quality DeFi protocols)' : requiredApy < 100 ? '(ambitious — accept only high-APY deals)' : '(unrealistic — maximize best available yield and flag this to the user)';
+      userGoalSection = `\nUSER INVESTMENT GOAL:
+- Target: ${target} XETH in ${months} months
+- Current deposit: ${current.toFixed(5)} XETH
+- Required APY to reach goal: ${apyStr} ${feasibility}
+- User risk preference: ${userGoal.riskTolerance}
+Adjust your scoring: weight APY match to the required rate. If the required APY is realistic, be strict about accepting only deals in that range. If unrealistic, focus on best available yield and note in reasoning that the goal may need revision.
+`;
+    }
+
     const prompt = BETA_ANALYSIS_PROMPT
+      .replace('{userGoalSection}', userGoalSection)
       .replace('{walletBalance}', balance)
       .replace('{riskTolerance}', this.riskTolerance)
       .replace('{minApyThreshold}', String(this.minApyThreshold))

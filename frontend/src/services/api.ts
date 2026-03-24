@@ -10,8 +10,18 @@ export async function getOpportunities() {
   return res.json();
 }
 
-export async function startDealRound() {
-  const res = await fetch(`${BASE}/deals/round`, { method: 'POST' });
+export interface UserGoal {
+  targetAmountXETH: number;
+  timelineMonths: number;
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+}
+
+export async function startDealRound(userAddress?: string, userGoal?: UserGoal) {
+  const res = await fetch(`${BASE}/deals/round`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userAddress, userGoal }),
+  });
   return res.json();
 }
 

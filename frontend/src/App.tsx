@@ -6,6 +6,7 @@ import ChatWindow from './components/ChatWindow';
 import DealAnalysis from './components/DealAnalysis';
 import LearningPanel from './components/LearningPanel';
 import DepositModal from './components/DepositModal';
+import GoalModal from './components/GoalModal';
 import Leaderboard from './components/Leaderboard';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import {
@@ -13,7 +14,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -105,6 +106,86 @@ const ALPHA_COLORS: Record<string, 'orange' | 'blue' | 'cyan'> = {
   'agent-alpha-quant':   'cyan',
 };
 
+function GoalProgressPanel({ goal, currentDepositXETH, avgApy, onEdit }: {
+  goal: UserGoal;
+  currentDepositXETH: number;
+  avgApy: number;
+  onEdit: () => void;
+}) {
+  const current = currentDepositXETH;
+  const target = goal.targetAmountXETH;
+  const months = goal.timelineMonths;
+
+  // Project future value at current APY
+  const projected = current > 0 && avgApy > 0
+    ? current * Math.pow(1 + avgApy / 100, months / 12)
+    : current;
+
+  // Required APY
+  let requiredApy: number | null = null;
+  if (current > 0 && target > current) {
+    requiredApy = (Math.pow(target / current, 12 / months) - 1) * 100;
+  }
+
+  const progressPct = target > 0 ? Math.min((projected / target) * 100, 100) : 0;
+  const onTrack = projected >= target * 0.9;
+
+  return (
+    <div className="rounded-2xl border border-gray-800 bg-gray-900/50 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🎯</span>
+          <span className="text-white font-semibold text-sm">Investment Goal</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${onTrack ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'}`}>
+            {onTrack ? 'On track' : 'Needs higher yield'}
+          </span>
+        </div>
+        <button onClick={onEdit} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Edit goal</button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">Target</div>
+          <div className="text-white font-bold">{target} XETH</div>
+          <div className="text-xs text-gray-600">in {months} months</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">Deposited</div>
+          <div className="text-white font-bold">{current > 0 ? current.toFixed(5) : '—'}</div>
+          <div className="text-xs text-gray-600">XETH</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">Projected @ {avgApy.toFixed(1)}% APY</div>
+          <div className={`font-bold ${projected >= target ? 'text-green-400' : 'text-yellow-400'}`}>
+            {current > 0 ? projected.toFixed(5) : '—'}
+          </div>
+          <div className="text-xs text-gray-600">XETH</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 mb-0.5">Required APY</div>
+          <div className={`font-bold ${requiredApy === null ? 'text-gray-500' : requiredApy < 20 ? 'text-green-400' : requiredApy < 100 ? 'text-yellow-400' : 'text-red-400'}`}>
+            {requiredApy !== null ? `${requiredApy.toFixed(1)}%` : current === 0 ? 'Deposit first' : '—'}
+          </div>
+          <div className="text-xs text-gray-600">to hit goal</div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${onTrack ? 'bg-green-500' : 'bg-yellow-500'}`}
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+      <div className="flex justify-between mt-1">
+        <span className="text-xs text-gray-600">0 XETH</span>
+        <span className="text-xs text-gray-500">{progressPct.toFixed(0)}% projected toward goal</span>
+        <span className="text-xs text-gray-600">{target} XETH</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [messages, setMessages] = useState<WSMessage[]>([]);
   const [alphas, setAlphas] = useState<AgentState[]>([]);
@@ -129,6 +210,10 @@ export default function App() {
   const [rebalancerStatus, setRebalancerStatus] = useState<{ running: boolean; lastRunAt?: string; rebalanceCount?: number; activePositions?: number } | null>(null);
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [onChainStats, setOnChainStats] = useState<{ capitalDeployedEth: number; avgApy: number; projectedAnnualEth: number; winRate: number; totalAccepted: number; totalPitched: number } | null>(null);
+  const [userGoal, setUserGoal] = useState<UserGoal | null>(() => {
+    try { return JSON.parse(localStorage.getItem('smartlayer_goal') || 'null'); } catch { return null; }
+  });
+  const [showGoalModal, setShowGoalModal] = useState(false);
 
   const { isConnected, address: connectedAddress } = useAccount();
 
@@ -272,13 +357,18 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  function handleSaveGoal(goal: UserGoal) {
+    setUserGoal(goal);
+    localStorage.setItem('smartlayer_goal', JSON.stringify(goal));
+  }
+
   async function handleNewRound() {
     setIsRunning(true);
     setRoundResult(null);
     setActiveAlphaIds(new Set(alphas.map(a => a.id)));
     setRoundCount(prev => prev + 1);
     try {
-      await startDealRound();
+      await startDealRound(connectedAddress, userGoal ?? undefined);
       await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance(), loadPositions(), loadOnChainStats()]);
     } finally {
       setIsRunning(false);
@@ -428,6 +518,12 @@ export default function App() {
                         <span className="text-sm font-mono font-bold text-green-300">{parseFloat(userVaultBalance).toFixed(5)} XETH</span>
                       </div>
                     )}
+                    <button
+                      onClick={() => setShowGoalModal(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-gray-600 hover:border-green-500/50 text-gray-400 hover:text-green-300 text-xs font-medium transition-colors"
+                    >
+                      🎯 {userGoal ? `Goal: ${userGoal.targetAmountXETH} XETH / ${userGoal.timelineMonths}mo` : 'Set Goal'}
+                    </button>
                   </div>
                 ) : (
                   <ConnectWallet label="Connect Wallet to Get Started" />
@@ -623,6 +719,16 @@ export default function App() {
           </div>
         </div>
 
+        {/* GOAL PROGRESS */}
+        {userGoal && (
+          <GoalProgressPanel
+            goal={userGoal}
+            currentDepositXETH={parseFloat(userVaultBalance || '0')}
+            avgApy={onChainStats?.avgApy ?? 0}
+            onEdit={() => setShowGoalModal(true)}
+          />
+        )}
+
         {/* ACTIVE POSITIONS */}
         <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
           <div className="flex items-center justify-between mb-4">
@@ -715,6 +821,15 @@ export default function App() {
           agentName="Agent Beta"
           onClose={() => setShowDeposit(false)}
           onSuccess={() => { setShowDeposit(false); loadAgents(); loadVaultBalance(); if (connectedAddress) loadUserVaultBalance(connectedAddress); }}
+        />
+      )}
+
+      {showGoalModal && (
+        <GoalModal
+          currentGoal={userGoal}
+          currentDepositXETH={parseFloat(userVaultBalance || '0')}
+          onSave={handleSaveGoal}
+          onClose={() => setShowGoalModal(false)}
         />
       )}
     </div>

@@ -143,6 +143,12 @@ export interface AgentState {
   memory: AgentMemory;
 }
 
+export interface UserGoal {
+  targetAmountXETH: number;   // target in XETH
+  timelineMonths: number;     // 1–24 months
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+}
+
 export interface WSMessage {
   type: 'agent_message' | 'deal_update' | 'deal_executed' | 'analysis_update' | 'learning_update' | 'rebalance_update' | 'position_update' | 'error';
   agentId?: string;

@@ -3,9 +3,9 @@ import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
 import { saveDeal, getAllDeals, getAlphaLeaderboard, getBetaSubscriptions, getDealsByAlpha, computeReputationScore, getAgentMemory } from '../memory/store';
-import { recordDealOnChain, contractsConfigured, getOnChainLeaderboard } from '../services/contracts';
+import { recordDealOnChain, contractsConfigured, getOnChainLeaderboard, getVaultBalance } from '../services/contracts';
 import { getYieldOpportunities } from '../services/defillama';
-import { WSMessage, Deal } from '../types';
+import { WSMessage, Deal, UserGoal } from '../types';
 import { ethers } from 'ethers';
 
 const router = Router();
@@ -54,8 +54,29 @@ export function createDealRoutes(
   });
 
   // Competitive deal round: all subscribed Alphas pitch simultaneously → Beta scores each → proportional allocation
-  router.post('/round', async (_req: Request, res: Response) => {
+  router.post('/round', async (req: Request, res: Response) => {
     try {
+      // Resolve which address to use as vault user (connected wallet if has balance, else Beta)
+      let resolvedUserAddress: string | undefined;
+      const requestedUser: string | undefined = req.body?.userAddress;
+
+      // Extract user goal if provided
+      const userGoal: UserGoal | undefined = req.body?.userGoal?.targetAmountXETH
+        ? req.body.userGoal as UserGoal
+        : undefined;
+
+      if (userGoal) {
+        broadcast({ type: 'agent_message', agentId: 'agent-beta', agentName: 'Agent Beta', message: `🎯 Goal loaded: ${userGoal.targetAmountXETH} XETH in ${userGoal.timelineMonths} months (${userGoal.riskTolerance} risk) — calibrating strategy...`, timestamp: new Date().toISOString() });
+      }
+
+      if (contractsConfigured() && requestedUser && ethers.isAddress(requestedUser)) {
+        const userBalance = await getVaultBalance(requestedUser).catch(() => '0');
+        if (parseFloat(userBalance) > 0) {
+          resolvedUserAddress = requestedUser;
+          broadcast({ type: 'agent_message', agentId: 'system', agentName: 'System', message: `💼 Deploying from user vault: ${requestedUser.slice(0, 8)}...${requestedUser.slice(-4)} (${parseFloat(userBalance).toFixed(5)} XETH)`, timestamp: new Date().toISOString() });
+        }
+      }
+
       // 1. Discover opportunities
       broadcast({ type: 'agent_message', agentId: 'system', agentName: 'System', message: 'Starting competitive deal round — scanning DeFiLlama for opportunities...', timestamp: new Date().toISOString() });
       const opportunities = await getYieldOpportunities();
@@ -77,6 +98,10 @@ export function createDealRoutes(
 
       // 3. All Alphas pitch in parallel (each gets a different opportunity)
       const betaBalance = await beta.getBalance();
+      // Use user's vault balance as budget if they have one, otherwise Beta's balance
+      const budgetBalance = resolvedUserAddress
+        ? (await getVaultBalance(resolvedUserAddress).catch(() => betaBalance))
+        : betaBalance;
       const pitchPromises = activeAlphas.map(async (alpha, i) => {
         const opp = opportunities[i % opportunities.length];
         broadcast({ type: 'agent_message', agentId: alpha.id, agentName: alpha.name, message: `Crafting pitch for ${opp.protocol} ${opp.pool} @ ${opp.apy}% APY...`, timestamp: new Date().toISOString() });
@@ -95,7 +120,7 @@ export function createDealRoutes(
       broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Analyzing ${pitches.length} competing pitch${pitches.length > 1 ? 'es' : ''}...`, timestamp: new Date().toISOString() });
 
       const analysisPromises = pitches.map(async ({ alpha, deal }) => {
-        const analyzed = await beta.analyzeDeal(deal, betaBalance);
+        const analyzed = await beta.analyzeDeal(deal, betaBalance, userGoal);
         saveDeal(analyzed);
         if (analyzed.analysisResult) {
           broadcast({ type: 'analysis_update', deal: analyzed, timestamp: new Date().toISOString() });
@@ -142,7 +167,7 @@ export function createDealRoutes(
         allocScore: (r.overallScore * 0.6) + (r.repScore * 0.4),
       }));
       const totalAllocScore = weighted.reduce((s, r) => s + r.allocScore, 0);
-      const maxBudget = Math.min(parseFloat(betaBalance) * 0.4, 0.002); // max 40% of balance, capped at 0.002 XETH
+      const maxBudget = Math.min(parseFloat(budgetBalance) * 0.4, 0.002); // max 40% of balance, capped at 0.002 XETH
 
       const allocations = weighted.map(r => ({
         ...r,
@@ -166,8 +191,8 @@ export function createDealRoutes(
         const modeTag = contractsConfigured() ? '[Vault]' : '[Native]';
         broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing ${r.alpha.name}'s deal on XLayer ${modeTag}...`, timestamp: new Date().toISOString() });
 
-        // Use vault user address = Beta agent address for demo (in production = depositing user's address)
-        const userAddress = contractsConfigured() ? beta.walletAddress : undefined;
+        // Use resolved user address (connected wallet with vault balance) or fall back to Beta demo wallet
+        const userAddress = contractsConfigured() ? (resolvedUserAddress || beta.walletAddress) : undefined;
         const executed = await executeDeal(dealToExec, beta.privateKey, beta.walletAddress, r.alpha.walletAddress, userAddress);
         saveDeal(executed);
 

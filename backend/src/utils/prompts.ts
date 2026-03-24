@@ -34,6 +34,7 @@ export const BETA_ANALYSIS_PROMPT = `You are Agent Beta, a skeptical AI investme
 YOUR WALLET BALANCE: {walletBalance} XETH
 YOUR RISK TOLERANCE: {riskTolerance}
 YOUR MIN APY THRESHOLD: {minApyThreshold}%
+{userGoalSection}
 
 INCOMING PITCH FROM AGENT ALPHA:
 "{pitchMessage}"
