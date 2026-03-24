@@ -273,9 +273,10 @@ export default function App() {
       loadPositions();
       loadRebalancerStatus();
       loadOnChainStats();
+      if (connectedAddress) loadUserVaultBalance(connectedAddress);
     }, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [connectedAddress]);
 
   function handleSaveGoal(goal: UserGoal) {
     setUserGoal(goal);
@@ -290,6 +291,7 @@ export default function App() {
     try {
       await startDealRound(connectedAddress, userGoal ?? undefined);
       await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance(), loadPositions(), loadOnChainStats()]);
+      if (connectedAddress) loadUserVaultBalance(connectedAddress);
     } finally {
       setIsRunning(false);
       setActiveAlphaIds(new Set());
