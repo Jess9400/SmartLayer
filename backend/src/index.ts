@@ -131,23 +131,22 @@ app.get('/api/contracts', (_req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-async function start() {
-  await Promise.all([...alphas.map(a => a.init()), beta.init()]);
+// Start listening immediately so Railway healthcheck passes
+server.listen(PORT, () => {
+  console.log(`SmartLayer backend running on http://localhost:${PORT}`);
+  console.log(`WebSocket server ready on ws://localhost:${PORT}`);
 
-  console.log(`Agent Beta wallet:   ${beta.walletAddress}`);
+  // Initialize agents asynchronously after server is up
+  Promise.all([...alphas.map(a => a.init()), beta.init()])
+    .then(() => {
+      console.log(`Agent Beta wallet:   ${beta.walletAddress}`);
+      alphas.forEach(a => console.log(`${a.name} wallet: ${a.walletAddress}`));
+      console.log(`${alphas.length} Alpha agents ready to compete`);
 
-  // Auto-setup vault for demo (deposit + assignAgent) if contracts are configured
-  if (contractsConfigured()) {
-    setupVaultDemo(beta.privateKey, beta.walletAddress)
-      .catch(e => console.warn('[vault] Setup warning:', e.message));
-  }
-  alphas.forEach(a => console.log(`${a.name} wallet: ${a.walletAddress}`));
-
-  server.listen(PORT, () => {
-    console.log(`SmartLayer backend running on http://localhost:${PORT}`);
-    console.log(`WebSocket server ready on ws://localhost:${PORT}`);
-    console.log(`${alphas.length} Alpha agents ready to compete`);
-  });
-}
-
-start().catch(console.error);
+      if (contractsConfigured()) {
+        setupVaultDemo(beta.privateKey, beta.walletAddress)
+          .catch(e => console.warn('[vault] Setup warning:', e.message));
+      }
+    })
+    .catch(e => console.error('[init] Agent init failed:', e.message));
+});
