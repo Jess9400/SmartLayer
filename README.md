@@ -20,6 +20,16 @@
 
 ---
 
+## Screenshots
+
+| My Portfolio | Execute Strategy |
+|---|---|
+| ![My Portfolio](screenshot0.png) | ![Execute Strategy](screenshot1.png) |
+
+> **My Portfolio** — live on-chain stats, active yield positions, and learning insights. **Execute Strategy** — run a deal round, watch Alpha agents compete in real time, and track the leaderboard.
+
+---
+
 > 🎥 **[Watch Demo Video](#)** ← link coming
 >
 > 🐦 **[X Post](https://x.com/LayerSmart34250/status/2036383616553591092)** — official launch post
@@ -59,7 +69,7 @@ Protocol / Fund ──► Alpha Agent ──► pitches deal ──► Agent Bet
                          Reputation updated on-chain
 ```
 
-### 3 Competing Alpha Agents
+### Competing Alpha Agents
 
 | Agent | Persona | Pitch Style |
 |-------|---------|-------------|
@@ -78,7 +88,7 @@ Every deal round all subscribed Alphas scan DeFiLlama and pitch simultaneously. 
 - Sends a **3% performance fee** to Alpha on every executed deal (enforced by SmartLayerVault)
 - **Goal-aware decision making** — set a target (e.g. 0.1 XETH in 6 months) and Beta calibrates deal selection to match the required APY
 - **Deploys from user vault** — when your connected wallet has a vault balance, Beta uses it directly; falls back to demo wallet if no user deposit is present
-- **One-click withdrawal** — withdraw USDC from ZeroLend positions back to your wallet at any time from the Active Deals panel
+- **One-click withdrawal** — withdraw from ZeroLend positions back to your wallet at any time from the Active Yield Positions panel
 
 ---
 
@@ -252,9 +262,9 @@ Any user can run a personal Beta agent that autonomously manages their capital:
 1. Connect your wallet (OKX Wallet or MetaMask) on the live app
 2. Deposit XETH into SmartLayerVault — Beta will deploy from your balance automatically
 3. **Set your investment goal** — target amount + timeline + risk tolerance (e.g. "0.5 XETH in 12 months, moderate risk")
-4. Click **Run Deal Round** — Beta analyzes every Alpha pitch with Claude AI, calibrating to your required APY
+4. Click **Run Strategy Selection** — Beta analyzes every Alpha pitch with Claude AI, calibrating to your required APY
 5. Accepted deals execute on-chain automatically — 97% to the yield destination, 3% fee to the Alpha
-6. Monitor active positions and **withdraw anytime** from the Active Deals panel (one click → ZeroLend withdrawal TX)
+6. Monitor active positions and **withdraw anytime** from the Active Yield Positions panel (one click → ZeroLend withdrawal TX)
 
 Your capital is non-custodial at all times — you can withdraw from `SmartLayerVault` or individual yield positions independently.
 
