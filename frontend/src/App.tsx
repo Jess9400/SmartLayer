@@ -363,13 +363,13 @@ export default function App() {
                 onClick={() => setActivePage('dashboard')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Dashboard
+                My Portfolio
               </button>
               <button
                 onClick={() => setActivePage('agents')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'agents' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Agents & Deals
+                Run a Deal
               </button>
             </div>
             <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? 'text-green-400' : 'text-red-400'}`}>
@@ -466,14 +466,12 @@ export default function App() {
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {isConnected ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => setShowDeposit(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
-                    >
-                      <CoinsIcon size={15} className="text-white" /> Delegate Capital
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setActivePage('agents')}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors text-sm"
+                  >
+                    <LightningIcon size={15} className="text-white" /> Go to Live Round →
+                  </button>
                 ) : (
                   <ConnectWallet label="Connect Wallet to Get Started" />
                 )}
@@ -686,18 +684,23 @@ export default function App() {
         {/* PRIMARY: Action + Live Activity */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={handleNewRound}
-              disabled={isRunning}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
-            >
-              {isRunning ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Running Deal Round...
-                </>
-              ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
-            </button>
+            <div className="flex flex-col gap-0.5">
+              <button
+                onClick={handleNewRound}
+                disabled={isRunning}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
+              >
+                {isRunning ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Running Deal Round...
+                  </>
+                ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
+              </button>
+              {!isRunning && (
+                <span className="text-xs text-gray-600 px-1">Alphas pitch · Beta scores · best deal executes on-chain</span>
+              )}
+            </div>
             {isConnected && beta?.walletAddress && (
               <button
                 onClick={() => setShowDeposit(true)}
