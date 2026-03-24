@@ -2,11 +2,11 @@ import { ethers } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Load ABIs from compiled artifacts
-const ARTIFACTS_DIR = path.join(__dirname, '../../../contracts/artifacts/contracts');
+// Load ABIs from bundled abi/ directory (works on Railway and locally)
+const ABI_DIR = path.join(__dirname, '../abi');
 
 function loadAbi(contractName: string) {
-  const file = path.join(ARTIFACTS_DIR, `${contractName}.sol`, `${contractName}.json`);
+  const file = path.join(ABI_DIR, `${contractName}.json`);
   return JSON.parse(fs.readFileSync(file, 'utf-8')).abi;
 }
 

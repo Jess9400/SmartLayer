@@ -1,0 +1,30 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "AgentRegistry",
+  "sourceName": "contracts/AgentRegistry.sol",
+  "abi": [
+    {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+    {"inputs":[],"name":"AlphaNotFound","type":"error"},
+    {"inputs":[],"name":"AlreadyRegistered","type":"error"},
+    {"inputs":[],"name":"AlreadySubscribed","type":"error"},
+    {"inputs":[],"name":"NotOwner","type":"error"},
+    {"inputs":[],"name":"NotSubscribed","type":"error"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"AlphaDeactivated","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"agentId","type":"bytes32"},{"indexed":false,"internalType":"string","name":"name","type":"string"},{"indexed":false,"internalType":"address","name":"feeAddress","type":"address"}],"name":"AlphaRegistered","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"subscriber","type":"address"},{"indexed":true,"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"Subscribed","type":"event"},
+    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"subscriber","type":"address"},{"indexed":true,"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"Unsubscribed","type":"event"},
+    {"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"alphaAgents","outputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"pitchStyle","type":"string"},{"internalType":"address","name":"feeAddress","type":"address"},{"internalType":"bool","name":"active","type":"bool"},{"internalType":"uint256","name":"registeredAt","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alphaIds","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"deactivateAlpha","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"getAllAlphas","outputs":[{"internalType":"bytes32[]","name":"ids","type":"bytes32[]"},{"components":[{"internalType":"bytes32","name":"agentId","type":"bytes32"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"pitchStyle","type":"string"},{"internalType":"address","name":"feeAddress","type":"address"},{"internalType":"bool","name":"active","type":"bool"},{"internalType":"uint256","name":"registeredAt","type":"uint256"}],"internalType":"struct AgentRegistry.AlphaInfo[]","name":"infos","type":"tuple[]"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"getAlphaCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"getFeeAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"subscriber","type":"address"}],"name":"getSubscriptions","outputs":[{"internalType":"bytes32[]","name":"","type":"bytes32[]"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"isSubscribed","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"pitchStyle","type":"string"},{"internalType":"address","name":"feeAddress","type":"address"}],"name":"registerAlpha","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"subscribe","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"bytes32","name":"agentId","type":"bytes32"}],"name":"unsubscribe","outputs":[],"stateMutability":"nonpayable","type":"function"}
+  ]
+}
