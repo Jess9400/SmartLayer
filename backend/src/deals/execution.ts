@@ -2,6 +2,7 @@ import { Deal } from '../types';
 import { executeNativeTransfer, transferToAddress, executeSwap } from '../services/okx';
 import { vaultExecute, contractsConfigured } from '../services/contracts';
 import { TOKENS } from '../utils/constants';
+import { depositUSDCToZeroLend, getUSDCBalance } from '../services/yield';
 import { ethers } from 'ethers';
 
 const ALPHA_FEE_PERCENT = 0.03;
@@ -43,6 +44,16 @@ export async function executeDeal(
         betaAddress
       ).catch(e => { console.warn('[DEX] Swap failed (non-fatal):', e.message); return null; });
 
+      // After swap, deposit received USDC into ZeroLend for yield
+      let depositTxHash: string | undefined;
+      if (swapResult) {
+        const usdcBalance = await getUSDCBalance(betaAddress);
+        if (usdcBalance > 0n) {
+          const depositHash = await depositUSDCToZeroLend(betaPrivateKey, usdcBalance, betaAddress);
+          depositTxHash = depositHash || undefined;
+        }
+      }
+
       return {
         ...deal,
         executed: true,
@@ -51,6 +62,7 @@ export async function executeDeal(
         alphaFeeTxHash: result.txHash,
         swapTxHash: swapResult || undefined,
         swapToAmount: swapResult ? 'USDC' : undefined,
+        depositTxHash,
         status: 'active',
       };
     }
@@ -68,6 +80,16 @@ export async function executeDeal(
     const txHash = swapTxHash || await executeNativeTransfer(betaPrivateKey, amountWei.toString());
     if (!txHash) return { ...deal, status: 'failed' };
 
+    // After swap, deposit received USDC into ZeroLend for yield
+    let depositTxHash: string | undefined;
+    if (swapTxHash) {
+      const usdcBalance = await getUSDCBalance(betaAddress);
+      if (usdcBalance > 0n) {
+        const depositHash = await depositUSDCToZeroLend(betaPrivateKey, usdcBalance, betaAddress);
+        depositTxHash = depositHash || undefined;
+      }
+    }
+
     let alphaFeeTxHash: string | undefined;
     let alphaFeeAmount: number | undefined;
 
@@ -84,6 +106,7 @@ export async function executeDeal(
       txHash,
       swapTxHash: swapTxHash || undefined,
       swapToAmount: swapTxHash ? 'USDC' : undefined,
+      depositTxHash,
       alphaFeeAmount,
       alphaFeeTxHash,
       status: 'active',

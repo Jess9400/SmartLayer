@@ -40,6 +40,7 @@ interface RoundResult {
   investmentAmount?: number;
   txHash?: string;
   swapTxHash?: string;
+  depositTxHash?: string;
 }
 
 interface Deal {
@@ -130,6 +131,7 @@ export default function App() {
         investmentAmount: deal?.investmentAmount,
         txHash: deal?.txHash,
         swapTxHash: deal?.swapTxHash as string | undefined,
+        depositTxHash: deal?.depositTxHash as string | undefined,
       });
     }
     if (msg.type === 'learning_update' && msg.data) {
@@ -282,6 +284,17 @@ export default function App() {
                   className="text-xs bg-blue-500/20 text-blue-300 hover:text-blue-200 border border-blue-500/30 rounded-full px-2 py-0.5 font-medium hover:underline"
                 >
                   XETH→USDC ↗
+                </a></>
+              )}
+              {roundResult.depositTxHash && (
+                <><span className="text-green-700">·</span>
+                <a
+                  href={`https://www.oklink.com/xlayer/tx/${roundResult.depositTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 rounded-full px-2 py-0.5 font-medium hover:underline"
+                >
+                  ZeroLend yield ↗
                 </a></>
               )}
               {roundResult.txHash && (

@@ -167,6 +167,13 @@ export function createDealRoutes(
               timestamp: new Date().toISOString(),
             });
           }
+          if (executed.depositTxHash) {
+            broadcast({
+              type: 'agent_message', agentId: beta.id, agentName: beta.name,
+              message: `🏦 ZeroLend deposit: USDC deposited for yield. TX: ${executed.depositTxHash}`,
+              timestamp: new Date().toISOString(),
+            });
+          }
           if (executed.alphaFeeTxHash) {
             const feeXETH = (executed.alphaFeeAmount || 0).toFixed(6);
             broadcast({

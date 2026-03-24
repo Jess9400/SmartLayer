@@ -70,6 +70,9 @@ export interface Deal {
   swapTxHash?: string;
   swapToAmount?: string;  // USDC received
 
+  // ZeroLend deposit (on-chain yield)
+  depositTxHash?: string;
+
   // Outcome
   status: 'pitching' | 'analyzing' | 'decided' | 'executing' | 'active' | 'completed' | 'failed';
   actualReturn?: number;
