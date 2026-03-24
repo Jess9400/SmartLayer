@@ -110,7 +110,7 @@ export default function App() {
   const { isConnected } = useAccount();
 
   const handleWSMessage = useCallback((msg: WSMessage) => {
-    setMessages(prev => [...prev, msg]);
+    setMessages(prev => [...prev.slice(-199), msg]);
     if (msg.agentId?.includes('alpha')) {
       setActiveAlphaIds(prev => new Set([...prev, msg.agentId!]));
     }
@@ -269,6 +269,8 @@ export default function App() {
               {roundResult.investmentAmount && (
                 <><span className="text-green-700">·</span><span className="text-green-400/80">{roundResult.investmentAmount.toFixed(5)} XETH invested</span></>
               )}
+              <span className="text-green-700">·</span>
+              <span className="text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2 py-0.5 font-medium">via OKX DEX</span>
               {roundResult.txHash && (
                 <><span className="text-green-700">·</span>
                 <a

@@ -14,6 +14,7 @@
   <a href="https://x.com/LayerSmart34250"><img src="https://img.shields.io/badge/Follow-%40LayerSmart34250-black?style=flat-square&logo=x" /></a>
   <img src="https://img.shields.io/badge/Chain-XLayer%20Mainnet%20196-orange?style=flat-square" />
   <img src="https://img.shields.io/badge/AI-Claude%20Sonnet%204.6-purple?style=flat-square" />
+  <img src="https://img.shields.io/badge/OKX-DEX%20%7C%20Wallet%20%7C%20Transfer-black?style=flat-square" />
   <img src="https://img.shields.io/badge/Hackathon-XLayer%20OnchainOS%20AI-red?style=flat-square" />
 </p>
 
@@ -121,15 +122,29 @@ Every execution: 97% goes to the deal destination, 3% fee goes to the winning Al
 
 ## OKX OnchainOS Integration
 
-SmartLayer uses the following OKX OnchainOS capabilities:
+> **SmartLayer is built on top of OKX OnchainOS.** Every deal round touches 3 distinct OKX APIs — from price discovery to settlement to fee routing — all running on XLayer Mainnet.
 
-| API | Usage |
-|-----|-------|
-| **DEX Aggregator API** (`/api/v5/dex/aggregator/swap`) | Get optimal swap routes and execute token swaps via OKX DEX aggregator on XLayer |
-| **Wallet API** (XLayer RPC via OnchainOS) | Query native XETH balances for all agent wallets before each deal round |
-| **Native Transfer API** | Execute 97% deal allocation + 3% Alpha performance fee as on-chain XETH transfers |
+| API | Endpoint | How SmartLayer Uses It |
+|-----|----------|----------------------|
+| **DEX Aggregator** | `/api/v5/dex/aggregator/swap` | Gets optimal swap route across XLayer liquidity pools; executes signed swap TX on-chain when Beta accepts a deal |
+| **Wallet / Balance API** | XLayer RPC via OnchainOS | Queries live XETH balances for all agent wallets before every deal round so Beta knows exactly how much capital it can deploy |
+| **Native Transfer API** | Direct XETH transfer | Executes the atomic 97/3 split — 97% to the yield destination, 3% performance fee to the Alpha agent's wallet — in a single on-chain call |
 
-The OKX DEX Aggregator is called in `backend/src/services/okx.ts` — it provides swap quotes with optimal routing across XLayer liquidity pools, then executes the signed transaction on-chain. The 3% fee model uses OKX's native transfer capability to send performance fees directly to Alpha agent wallets on every accepted deal.
+### Deal Execution Flow (OKX-powered)
+
+```
+Beta accepts deal
+      │
+      ├─ 1. OKX DEX Aggregator  ──► optimal swap route for XLayer pools
+      │
+      ├─ 2. SmartLayerVault.execute()  ──► atomic 97/3 XETH split on-chain
+      │        ├─ 97% → yield destination  (Native Transfer)
+      │        └─ 3%  → Alpha fee wallet   (Native Transfer)
+      │
+      └─ 3. ReputationRegistry.recordDeal()  ──► on-chain score updated
+```
+
+Every executed deal is verifiable on [OKLink XLayer Explorer](https://www.oklink.com/xlayer). The HMAC-SHA256 signed OKX API calls are in `backend/src/services/okx.ts`.
 
 ---
 

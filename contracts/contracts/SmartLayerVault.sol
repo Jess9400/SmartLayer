@@ -21,6 +21,16 @@ contract SmartLayerVault {
     mapping(address => address) public betaAgent;
     mapping(address => address[]) private _agentUsers;
 
+    // Reentrancy guard
+    bool private _entered;
+    error Reentrant();
+    modifier nonReentrant() {
+        if (_entered) revert Reentrant();
+        _entered = true;
+        _;
+        _entered = false;
+    }
+
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event AgentAssigned(address indexed user, address indexed agent);
@@ -67,7 +77,7 @@ contract SmartLayerVault {
         emit AgentAssigned(msg.sender, agent);
     }
 
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (balances[msg.sender] < amount) revert InsufficientBalance();
         balances[msg.sender] -= amount;
@@ -92,7 +102,7 @@ contract SmartLayerVault {
         address payable destination,
         uint256 amount,
         uint256 apyBps
-    ) external {
+    ) external nonReentrant {
         if (betaAgent[user] == address(0)) revert NoAgentAssigned();
         if (msg.sender != betaAgent[user]) revert NotBetaAgent();
         if (amount == 0) revert ZeroAmount();

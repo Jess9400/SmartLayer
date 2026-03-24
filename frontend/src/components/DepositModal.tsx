@@ -31,6 +31,7 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
   const [amount, setAmount] = useState('0.001');
   const [step, setStep] = useState<'input' | 'pending' | 'assigning' | 'success'>('input');
   const [txHash, setTxHash] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [vaultAddress, setVaultAddress] = useState<string | null>(null);
   const [useVault, setUseVault] = useState(false);
 
@@ -49,11 +50,12 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
           setUseVault(true);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error('[DepositModal] Failed to fetch contract addresses:', e));
   }, []);
 
   async function handleDeposit() {
     if (!amount || parseFloat(amount) <= 0) return;
+    setErrorMsg(null);
     setStep('pending');
 
     try {
@@ -91,7 +93,11 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
                 }
               );
             },
-            onError: () => setStep('input'),
+            onError: (err) => {
+              console.error('[DepositModal] Vault deposit failed:', err);
+              setErrorMsg('Deposit failed. Please check your wallet and try again.');
+              setStep('input');
+            },
           }
         );
       } else {
@@ -107,11 +113,17 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
               setStep('success');
               setTimeout(onSuccess, 2000);
             },
-            onError: () => setStep('input'),
+            onError: (err) => {
+              console.error('[DepositModal] Transfer failed:', err);
+              setErrorMsg('Transaction rejected or failed. Please try again.');
+              setStep('input');
+            },
           }
         );
       }
-    } catch {
+    } catch (err) {
+      console.error('[DepositModal] Unexpected error:', err);
+      setErrorMsg('Unexpected error. Please try again.');
       setStep('input');
     }
   }
@@ -174,6 +186,12 @@ export default function DepositModal({ agentAddress, agentName, onClose, onSucce
                 ? 'Capital is locked in the SmartLayerVault contract. Your Beta agent autonomously invests in accepted deals — 97% to the deal, 3% performance fee to Alpha.'
                 : `Your XETH will be delegated to ${agentName}, who will autonomously invest it in yield opportunities on XLayer.`}
             </div>
+
+            {errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3 text-xs text-red-400">
+                {errorMsg}
+              </div>
+            )}
 
             <button
               onClick={handleDeposit}
