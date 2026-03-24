@@ -64,7 +64,7 @@ Respond ONLY in valid JSON:
     "apyAssessment": "<1-2 sentences>",
     "riskAssessment": "<1-2 sentences>",
     "macroAssessment": "<1-2 sentences>",
-    "historyComparison": "<1-2 sentences>"
+    "historyComparison": "<Explicitly reference YOUR MEMORY above. If you've seen this protocol before, say what happened: 'Last time we accepted [Protocol] at [X]% APY, it [outcome].' If rejected before, say why. If no history, say 'First time evaluating [Protocol] — no track record to compare.'>"
   },
   "scores": {
     "protocol": <0-100>,
@@ -75,7 +75,7 @@ Respond ONLY in valid JSON:
     "overall": <0-100>
   },
   "decision": "accept",
-  "reasoning": "<2-3 sentences explaining decision>",
+  "reasoning": "<Lead with a punchy one-line verdict: 'Accepted: [key reason with a specific number]' or 'Rejected: [key reason with a specific number]'. Then 1 sentence with the deciding factor.>",
   "investmentAmount": <amount in XETH if accepting, null if rejecting>,
   "counterTerms": "<if decision is counter, specify new terms, else null>",
   "confidence": <0-100>

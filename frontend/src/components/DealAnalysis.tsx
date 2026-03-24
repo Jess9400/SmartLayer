@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   ChartBarIcon, CheckCircleIcon, XCircleIcon, RefreshCwIcon,
-  ChainLinkIcon, BuildingIcon, QuantIcon, GemIcon, GlobeIcon,
+  ChainLinkIcon, BuildingIcon, QuantIcon, GemIcon, GlobeIcon, BrainIcon,
 } from './Icons';
 
 interface Deal {
@@ -26,6 +26,7 @@ interface Deal {
     protocolAssessment: string;
     apyAssessment: string;
     riskAssessment: string;
+    historyComparison?: string;
   };
 }
 
@@ -136,6 +137,16 @@ export default function DealAnalysis({ deal }: { deal: Deal | null }) {
         </div>
       )}
 
+      {deal.analysisResult?.historyComparison && (
+        <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 flex items-start gap-2">
+          <BrainIcon size={13} className="text-purple-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-purple-400 font-medium uppercase tracking-wider mb-0.5">Memory</p>
+            <p className="text-gray-300 text-xs leading-relaxed">{deal.analysisResult.historyComparison}</p>
+          </div>
+        </div>
+      )}
+
       {deal.decision && (
         <div className={`rounded-lg border p-3 ${decisionBg}`}>
           <div className={`font-bold text-sm ${decisionColor} mb-1 flex items-center gap-1.5`}>
@@ -143,7 +154,7 @@ export default function DealAnalysis({ deal }: { deal: Deal | null }) {
             {deal.decision.toUpperCase()}
             {deal.investmentAmount && ` — ${deal.investmentAmount.toFixed(5)} XETH`}
           </div>
-          <p className="text-gray-300 text-xs">{deal.decisionReasoning}</p>
+          <p className="text-gray-300 text-xs leading-relaxed">{deal.decisionReasoning}</p>
           {deal.txHash && (
             <a
               href={`https://www.oklink.com/xlayer/tx/${deal.txHash}`}
