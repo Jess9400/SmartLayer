@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express';
+import axios from 'axios';
+import { v4 as uuid } from 'uuid';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { executeDeal } from '../deals/execution';
 import { saveDeal, getAllDeals, getAlphaLeaderboard, getBetaSubscriptions, getDealsByAlpha, computeReputationScore, getAgentMemory } from '../memory/store';
 import { recordDealOnChain, contractsConfigured, getOnChainLeaderboard, getVaultBalance } from '../services/contracts';
 import { getYieldOpportunities } from '../services/defillama';
+import { getWebhookAlphas } from '../memory/webhooks';
 import { WSMessage, Deal, UserGoal } from '../types';
 import { ethers } from 'ethers';
 
@@ -86,7 +89,7 @@ export function createDealRoutes(
       const activeAlphas = alphas.filter(a => subscribedIds.includes(a.id));
 
       if (activeAlphas.length === 0) {
-        res.json({ error: 'Beta has no subscribed Alpha agents' });
+        res.status(400).json({ error: 'Beta has no subscribed Alpha agents' });
         return;
       }
 
@@ -114,7 +117,57 @@ export function createDealRoutes(
         return { alpha, deal: dealWithAddr };
       });
 
-      const pitches = await Promise.all(pitchPromises);
+      const pitches: Array<{ alpha: { id: string; name: string; walletAddress: string }; deal: Deal }> = await Promise.all(pitchPromises);
+
+      // 3b. Webhook Alpha pitches (external agents calling in via HTTP)
+      const webhookAlphas = getWebhookAlphas().filter(wh => subscribedIds.includes(wh.id));
+      if (webhookAlphas.length > 0) {
+        broadcast({ type: 'agent_message', agentId: 'system', agentName: 'System', message: `Calling ${webhookAlphas.length} external webhook Alpha(s)...`, timestamp: new Date().toISOString() });
+        const webhookPitches = await Promise.all(webhookAlphas.map(async (wh, i) => {
+          const opp = opportunities[(pitches.length + i) % opportunities.length];
+          broadcast({ type: 'agent_message', agentId: wh.id, agentName: wh.name, message: `Calling ${wh.name} webhook...`, timestamp: new Date().toISOString() });
+          try {
+            const betaCtx = getAgentMemory('agent-beta');
+            const response = await axios.post(wh.webhookUrl, {
+              opportunity: opp,
+              betaContext: {
+                dealsAccepted: betaCtx.dealsAccepted.slice(-3).map(d => ({ protocol: d.protocol, apy: d.apy })),
+                riskProfile: betaCtx.riskProfile || 'moderate',
+                budgetBalance,
+              },
+            }, { timeout: 10000 });
+            const data = response.data;
+            const deal: Deal = {
+              id: uuid(),
+              timestamp: new Date(),
+              protocol: data.protocol || opp.protocol,
+              pool: data.pool || opp.pool,
+              chain: opp.chain,
+              apy: data.apy || opp.apy,
+              tvl: opp.tvl,
+              riskLevel: opp.riskLevel,
+              audited: opp.audited,
+              contractAddress: opp.contractAddress,
+              pitcherId: wh.id,
+              pitcherAddress: '',
+              pitchMessage: data.pitchMessage || 'No pitch provided',
+              suggestedAmount: data.suggestedAmount || 0.0005,
+              confidence: data.confidence || 50,
+              receiverId: 'agent-beta',
+              executed: false,
+              status: 'pitching',
+            };
+            saveDeal(deal);
+            broadcast({ type: 'agent_message', agentId: wh.id, agentName: wh.name, message: deal.pitchMessage, timestamp: new Date().toISOString() });
+            broadcast({ type: 'deal_update', deal, timestamp: new Date().toISOString() });
+            return { alpha: { id: wh.id, name: wh.name, walletAddress: '' }, deal };
+          } catch (e: any) {
+            broadcast({ type: 'agent_message', agentId: wh.id, agentName: wh.name, message: `⚠️ Webhook unreachable: ${e.message}`, timestamp: new Date().toISOString() });
+            return null;
+          }
+        }));
+        webhookPitches.filter(Boolean).forEach(p => pitches.push(p!));
+      }
 
       // 4. Beta analyzes each pitch in parallel
       broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Analyzing ${pitches.length} competing pitch${pitches.length > 1 ? 'es' : ''}...`, timestamp: new Date().toISOString() });

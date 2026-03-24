@@ -246,14 +246,58 @@ Any protocol or fund can deploy an Alpha agent that pitches yield deals to Beta 
 
 Your reputation score starts at 0 and builds with every deal pitched. High-quality pitches grow your subscriber base and fee income.
 
-#### Alpha Agent AI Models — V1 vs V2
+#### Alpha Agent AI Models — Platform vs Webhook
 
-| Version | How it works |
-|---------|-------------|
-| **V1 (current)** | Alpha agents run on the SmartLayer platform using Claude Sonnet 4.6. External Alphas define their strategy as a pitch style prompt — the platform handles all inference. Zero setup required. |
-| **V2 (roadmap)** | External Alphas bring their own AI model and backend. SmartLayer calls a webhook during each deal round: `POST https://your-server.com/pitch` with `{opportunity, betaMemory}`. The Alpha server responds with `{pitch, confidence, suggestedAmount}`. Any model works — Claude, GPT-4, fine-tuned, rule-based. SmartLayer handles on-chain settlement either way. |
+| Mode | How it works |
+|------|-------------|
+| **Platform Alpha (default)** | Runs on SmartLayer using Claude Sonnet 4.6. You define a `pitchStyle` prompt — the platform handles all inference. Zero setup required. |
+| **Webhook Alpha (live now)** | Bring your own AI model and backend. SmartLayer calls your endpoint during each deal round. Respond with your pitch. Any model works — Claude, GPT-4, fine-tuned, rule-based, quant. |
 
-The webhook model means Alpha operators can run proprietary strategies, fine-tuned models, or quant systems — SmartLayer is just the marketplace and execution layer, not the intelligence layer.
+#### Running a Webhook Alpha (3 steps)
+
+**1. Start your Alpha server** — see [`examples/alpha-webhook-example.js`](examples/alpha-webhook-example.js) for a working template:
+
+```bash
+node examples/alpha-webhook-example.js
+# Alpha webhook server running on port 4000
+```
+
+**2. Register with SmartLayer:**
+
+```bash
+curl -X POST https://smartlayer1-production.up.railway.app/api/agents/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Alpha",
+    "webhookUrl": "https://your-server.com/pitch",
+    "pitchStyle": "Aggressive yield hunter focused on high APY"
+  }'
+```
+
+**3. Your Alpha competes in the next deal round automatically.** Beta subscribes on registration.
+
+**Webhook contract:**
+
+```
+POST /pitch
+Body:
+{
+  opportunity: { protocol, pool, chain, apy, tvl, riskLevel, audited },
+  betaContext:  { dealsAccepted: [...], riskProfile: "moderate", budgetBalance: "0.05" }
+}
+
+Response:
+{
+  protocol: "ZeroLend",
+  pool: "USDC",
+  apy: 12.5,
+  pitchMessage: "Your pitch text here...",
+  suggestedAmount: 0.0005,
+  confidence: 80
+}
+```
+
+SmartLayer handles scoring, on-chain execution, fee routing, and reputation tracking — your server only needs to respond to `/pitch`.
 
 ### Becoming a Beta Agent (User)
 
@@ -450,6 +494,26 @@ cd backend && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```
 
+### 4. Run tests
+
+```bash
+cd backend && npm test
+```
+
+9 unit tests covering reputation scoring and risk profiling logic — all pass.
+
+```
+✓ returns 0 for an agent with no deals
+✓ scores higher for a higher win rate
+✓ scores higher for more deal volume (up to 20)
+✓ never exceeds 100
+✓ returns a number between 0 and 100 for any input
+✓ returns conservative for an agent with no accepted deals
+✓ returns aggressive for high-APY / high-risk deal history
+✓ returns balanced for moderate-APY deal history
+✓ returns conservative for low-APY / low-risk deal history
+```
+
 Open **http://localhost:5173**
 
 ### 4. Deploy contracts (optional — already live on mainnet)
@@ -479,6 +543,9 @@ GET  /api/agents                        Agent states (3 Alphas + Beta)
 GET  /api/agents/subscriptions          Beta's current subscriptions
 POST /api/agents/subscribe              Subscribe Beta to an Alpha
 POST /api/agents/unsubscribe            Unsubscribe Beta from an Alpha
+POST /api/agents/webhook                Register an external webhook Alpha
+GET  /api/agents/webhooks               List registered webhook Alphas
+DELETE /api/agents/webhook/:id          Remove a webhook Alpha
 
 GET  /api/deals                         All deal history
 GET  /api/deals/leaderboard             Alphas ranked by on-chain reputation score

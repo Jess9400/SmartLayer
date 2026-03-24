@@ -4,6 +4,7 @@ import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
 import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha, saveCustomAlpha } from '../memory/store';
 import { contractsConfigured, registerAlphaOnChain, getOnChainLeaderboard } from '../services/contracts';
+import { getWebhookAlphas, saveWebhookAlpha, deleteWebhookAlpha } from '../memory/webhooks';
 import { AGENT_IDS } from '../utils/constants';
 
 const router = Router();
@@ -113,6 +114,34 @@ export function createAgentRoutes(alphas: AlphaAgent[], beta: BetaAgent) {
       txHash: txHash || null,
       subscribedAlphaIds: getBetaSubscriptions(),
     });
+  });
+
+  // Register an external Alpha agent via webhook
+  router.post('/webhook', (req: Request, res: Response) => {
+    const { name, webhookUrl, pitchStyle } = req.body;
+    if (!name || !webhookUrl || !pitchStyle) {
+      res.status(400).json({ error: 'name, webhookUrl, and pitchStyle are required' });
+      return;
+    }
+    try { new URL(webhookUrl); } catch {
+      res.status(400).json({ error: 'webhookUrl must be a valid URL' });
+      return;
+    }
+    const alpha = saveWebhookAlpha({ name, webhookUrl, pitchStyle, registeredAt: new Date().toISOString() });
+    subscribeToAlpha(AGENT_IDS.BETA, alpha.id);
+    res.json({ success: true, alphaId: alpha.id, name, webhookUrl, subscribedAlphaIds: getBetaSubscriptions() });
+  });
+
+  // List registered webhook Alphas
+  router.get('/webhooks', (_req: Request, res: Response) => {
+    res.json(getWebhookAlphas());
+  });
+
+  // Remove a webhook Alpha
+  router.delete('/webhook/:id', (req: Request, res: Response) => {
+    const removed = deleteWebhookAlpha(req.params.id);
+    if (!removed) { res.status(404).json({ error: 'Webhook Alpha not found' }); return; }
+    res.json({ success: true });
   });
 
   router.get('/:id', async (req: Request, res: Response) => {
