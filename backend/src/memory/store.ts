@@ -288,3 +288,7 @@ export function updateAgentMemory(agentId: string, updates: Partial<AgentMemory>
   store.agents[agentId] = { ...store.agents[agentId], ...updates };
   save(store);
 }
+
+export function resetMemory(): void {
+  save({ agents: {}, deals: [] });
+}

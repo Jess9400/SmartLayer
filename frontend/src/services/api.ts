@@ -88,6 +88,11 @@ export async function unsubscribeFromAlpha(alphaId: string) {
   return res.json();
 }
 
+export async function resetMemory() {
+  const res = await fetch(`${BASE}/memory/reset`, { method: 'POST' });
+  return res.json();
+}
+
 export async function getPositions() {
   const res = await fetch(`${BASE}/positions`);
   return res.json();

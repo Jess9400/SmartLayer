@@ -55,8 +55,13 @@ MARKET CONTEXT:
 YOUR MEMORY OF SIMILAR PAST DEALS:
 {similarDealsHistory}
 
-Analyze this deal thoroughly and make a decision.
+Analyze this deal thoroughly and make a decision based ONLY on the current deal merits, market context, and past outcomes.
 IMPORTANT: Your wallet balance is small (in XETH). If you accept, investmentAmount must be between 0.0005 and 0.001 XETH — never more than half your balance.
+CRITICAL RULES:
+- Never reference "warnings I issued in prior rounds" or "commitments to reject next time" — those are not binding. Each round is evaluated on its own merits.
+- A deal that has been accepted before and performed is MORE trustworthy, not less. Repetition of a good opportunity is fine.
+- Only reject if the deal is objectively bad RIGHT NOW (risk too high, APY below threshold, protocol unaudited when audit required, TVL too low).
+- If a protocol has been consistently accepted and nothing negative has changed, keep accepting it.
 
 Respond ONLY in valid JSON:
 {

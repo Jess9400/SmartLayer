@@ -14,7 +14,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, UserGoal } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -297,6 +297,12 @@ export default function App() {
       setActiveAlphaIds(new Set());
       setActiveBeta(false);
     }
+  }
+
+  async function handleResetMemory() {
+    await resetMemory();
+    setLearningData(null);
+    await Promise.all([loadAgents(), loadLeaderboard()]);
   }
 
   async function handleRunLearning() {
@@ -633,6 +639,7 @@ export default function App() {
             <LearningPanel
               data={learningData as never}
               onRunLearning={handleRunLearning}
+              onResetMemory={handleResetMemory}
               isRunning={isLearning}
             />
           </div>

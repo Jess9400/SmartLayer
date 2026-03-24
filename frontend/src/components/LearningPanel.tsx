@@ -16,23 +16,33 @@ interface LearningData {
 interface LearningPanelProps {
   data: LearningData | null;
   onRunLearning: () => void;
+  onResetMemory: () => void;
   isRunning: boolean;
 }
 
-export default function LearningPanel({ data, onRunLearning, isRunning }: LearningPanelProps) {
+export default function LearningPanel({ data, onRunLearning, onResetMemory, isRunning }: LearningPanelProps) {
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-white flex items-center gap-2">
           <BrainIcon size={16} className="text-purple-400" /> Learning Insights
         </h3>
-        <button
-          onClick={onRunLearning}
-          disabled={isRunning}
-          className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
-        >
-          {isRunning ? 'Analyzing...' : 'Run Analysis'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onResetMemory}
+            className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium transition-colors"
+            title="Clear Beta's deal memory and start fresh"
+          >
+            Reset Memory
+          </button>
+          <button
+            onClick={onRunLearning}
+            disabled={isRunning}
+            className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
+          >
+            {isRunning ? 'Analyzing...' : 'Run Analysis'}
+          </button>
+        </div>
       </div>
 
       {!data ? (

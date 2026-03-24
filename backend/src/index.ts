@@ -11,7 +11,7 @@ import { createLearningRoutes } from './routes/learning';
 import { WSMessage } from './types';
 import { ALPHA_AGENTS } from './utils/constants';
 import { contractsConfigured, setupVaultDemo, toBytes32, getVaultBalance } from './services/contracts';
-import { loadCustomAlphas } from './memory/store';
+import { loadCustomAlphas, resetMemory } from './memory/store';
 import { getPositions, getActivePositions, syncPositions } from './memory/positions';
 import { RebalancerAgent } from './agents/rebalancer';
 import { ethers } from 'ethers';
@@ -54,6 +54,11 @@ app.use('/api/deals', createDealRoutes(alphas, beta, broadcast));
 app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+app.post('/api/memory/reset', (_req, res) => {
+  resetMemory();
+  res.json({ reset: true, message: 'Agent memory cleared — Beta starts fresh' });
+});
 
 // Position tracking
 app.get('/api/positions', (_req, res) => res.json(getPositions()));
