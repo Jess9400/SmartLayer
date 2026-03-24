@@ -369,7 +369,7 @@ export default function App() {
                 onClick={() => setActivePage('agents')}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'agents' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Run a Deal
+                Execute Strategy
               </button>
             </div>
             <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? 'text-green-400' : 'text-red-400'}`}>
@@ -559,7 +559,7 @@ export default function App() {
               onClick={() => setActivePage('agents')}
               className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition-colors"
             >
-              Run a Deal →
+              Execute Strategy →
             </button>
           </div>
         )}
@@ -716,7 +716,7 @@ export default function App() {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Running Deal Round...
                   </>
-                ) : <><LightningIcon size={15} className="text-white" /> New Deal Round</>}
+                ) : <><LightningIcon size={15} className="text-white" /> Run Strategy Selection</>}
               </button>
               {!isRunning && (
                 <span className="text-xs text-gray-600 px-1">Alphas pitch · Beta scores · best deal executes on-chain</span>
