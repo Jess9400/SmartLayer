@@ -63,22 +63,15 @@ app.post('/api/positions/sync', async (_req, res) => {
   res.json(updated);
 });
 
-app.get('/api/vault/balance', async (_req, res) => {
+// /api/vault/balance          → Beta's balance
+// /api/vault/balance?address= → specific user's balance
+app.get('/api/vault/balance', async (req, res) => {
+  const addr = (req.query.address as string) || beta.walletAddress;
   try {
-    const balance = await getVaultBalance(beta.walletAddress);
-    res.json({ vaultBalance: balance, address: beta.walletAddress });
+    const balance = await getVaultBalance(addr);
+    res.json({ vaultBalance: balance, address: addr });
   } catch {
-    res.json({ vaultBalance: '0' });
-  }
-});
-
-// User-specific vault balance (connected wallet)
-app.get('/api/vault/balance/:address', async (req, res) => {
-  try {
-    const balance = await getVaultBalance(req.params.address);
-    res.json({ vaultBalance: balance, address: req.params.address });
-  } catch {
-    res.json({ vaultBalance: '0', address: req.params.address });
+    res.json({ vaultBalance: '0', address: addr });
   }
 });
 
