@@ -125,7 +125,8 @@ export default function App() {
   const [vaultBalance, setVaultBalance] = useState<string | undefined>(undefined);
   const [userVaultBalance, setUserVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(true);
+  const [activePage, setActivePage] = useState<'dashboard' | 'agents'>('dashboard');
   const [positions, setPositions] = useState<Position[]>([]);
   const [rebalancerStatus, setRebalancerStatus] = useState<{ running: boolean; lastRunAt?: string; rebalanceCount?: number; activePositions?: number } | null>(null);
   const [isRebalancing, setIsRebalancing] = useState(false);
@@ -356,6 +357,21 @@ export default function App() {
             <span className="text-xs text-gray-500 border border-gray-700 rounded-full px-2 py-0.5 hidden sm:inline">AI Agent Deal Network</span>
           </div>
           <div className="flex items-center gap-4">
+            {/* Page tabs */}
+            <div className="flex items-center bg-gray-800/60 rounded-xl p-1 border border-gray-700/50">
+              <button
+                onClick={() => setActivePage('dashboard')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActivePage('agents')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'agents' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Agents & Deals
+              </button>
+            </div>
             <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? 'text-green-400' : 'text-red-400'}`}>
               <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
               {wsConnected ? 'Live' : 'Reconnecting...'}
@@ -446,7 +462,7 @@ export default function App() {
                 <span className="text-green-400">The Best Deal Executes On-Chain.</span>
               </h1>
               <p className="text-gray-400 text-sm mb-4 leading-relaxed max-w-lg">
-                3 Alpha agents pitch yield opportunities. Your personal Beta agent — powered by Claude AI — scores every pitch and automatically executes the winner on XLayer. <strong className="text-gray-200">Real transactions. Real yield. Zero manual work.</strong>
+                3 AI agents compete to find you the best <strong className="text-gray-200">DeFi yield farming</strong> opportunity. Your personal Beta agent — powered by Claude AI — scores every pitch and automatically executes the winner on XLayer. <strong className="text-gray-200">Real transactions. Real yield. Zero manual work.</strong>
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {isConnected ? (
@@ -534,6 +550,8 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
+      {activePage === 'dashboard' && (<>
+
         {/* PERFORMANCE DASHBOARD */}
         <PerformanceDashboard
           acceptedDeals={(beta?.memory?.dealsAccepted ?? []) as any[]}
@@ -582,6 +600,21 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* LEARNING PANEL */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Learning Insights</div>
+          <LearningPanel
+            data={learningData as never}
+            onRunLearning={handleRunLearning}
+            onResetMemory={handleResetMemory}
+            isRunning={isLearning}
+          />
+        </div>
+
+      </>)}
+
+      {activePage === 'agents' && (<>
 
         {/* SECONDARY: 3 Alpha Agents */}
         <div>
@@ -635,32 +668,21 @@ export default function App() {
           <div className="flex-1 border-t border-gray-800" />
         </div>
 
-        {/* Beta Agent + Learning Panel side by side */}
-        <div className="grid grid-cols-5 gap-6">
-          <div className="col-span-2">
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
-            <AgentCard
-              name={beta?.name || 'Agent Beta'}
-              role={beta?.role || 'Deal Analyst'}
-              balance={beta?.balance || '0'}
-              walletAddress={beta?.walletAddress || ''}
-              dealsAnalyzed={betaReceived}
-              acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
-              isActive={activeBeta}
-              side="beta"
-              riskProfile={beta?.memory?.riskProfile}
-              vaultBalance={vaultBalance}
-            />
-          </div>
-          <div className="col-span-3">
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Beta Learning</div>
-            <LearningPanel
-              data={learningData as never}
-              onRunLearning={handleRunLearning}
-              onResetMemory={handleResetMemory}
-              isRunning={isLearning}
-            />
-          </div>
+        {/* Beta Agent Card */}
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Your Personal Agent</div>
+          <AgentCard
+            name={beta?.name || 'Agent Beta'}
+            role={beta?.role || 'Deal Analyst'}
+            balance={beta?.balance || '0'}
+            walletAddress={beta?.walletAddress || ''}
+            dealsAnalyzed={betaReceived}
+            acceptRate={betaReceived > 0 ? Math.round((betaAccepted / betaReceived) * 100) : 0}
+            isActive={activeBeta}
+            side="beta"
+            riskProfile={beta?.memory?.riskProfile}
+            vaultBalance={vaultBalance}
+          />
         </div>
 
         {/* ACTIVE POSITIONS */}
@@ -704,7 +726,7 @@ export default function App() {
                   <div key={pos.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-700/50">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-white text-sm font-medium">{pos.adapterUsed}</span>
+                        <span className="text-white text-sm font-medium">{pos.adapterUsed || pos.protocol}</span>
                         <span className="text-gray-500 text-xs">{pos.token.symbol}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded-full border ${statusColor}`}>{pos.status}</span>
                       </div>
@@ -764,6 +786,8 @@ export default function App() {
           subscribedIds={subscribedIds}
           onSubscriptionChange={setSubscribedIds}
         />
+      </>)}
+
       </main>
 
       <footer className="border-t border-gray-800 mt-12 py-6 text-center text-gray-600 text-xs">

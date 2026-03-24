@@ -93,7 +93,7 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
             icon: <CoinsIcon size={14} className="text-green-400" />,
             value: hasData ? `${totalInvested.toFixed(5)}` : '—',
             unit: 'XETH',
-            label: 'Capital Deployed',
+            label: 'Total Invested',
             color: hasData ? 'text-green-400' : 'text-gray-600',
           },
           {
