@@ -14,7 +14,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, UserGoal } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -134,6 +134,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('smartlayer_goal') || 'null'); } catch { return null; }
   });
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   const { isConnected, address: connectedAddress } = useAccount();
 
@@ -279,7 +280,7 @@ export default function App() {
       loadRebalancerStatus();
       loadOnChainStats();
       if (connectedAddress) loadUserVaultBalance(connectedAddress);
-    }, 15000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [connectedAddress]);
 
@@ -310,6 +311,18 @@ export default function App() {
     await Promise.all([loadAgents(), loadLeaderboard()]);
   }
 
+  async function handleWithdraw(positionId: string) {
+    setWithdrawingId(positionId);
+    try {
+      const result = await withdrawPosition(positionId);
+      await loadPositions();
+      if (connectedAddress) loadUserVaultBalance(connectedAddress);
+      return result;
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
+
   async function handleRunLearning() {
     setIsLearning(true);
     try {
@@ -320,8 +333,8 @@ export default function App() {
     }
   }
 
-  const betaReceived = beta?.memory?.dealsReceived?.length ?? 0;
-  const betaAccepted = beta?.memory?.dealsAccepted?.length ?? 0;
+  const betaReceived = onChainStats?.totalPitched ?? beta?.memory?.dealsReceived?.length ?? 0;
+  const betaAccepted = onChainStats?.totalAccepted ?? beta?.memory?.dealsAccepted?.length ?? 0;
   const totalFeesCollected = leaderboard.reduce((sum, e) => sum + (e.totalFeesEarned ?? 0), 0);
 
   return (
@@ -704,14 +717,35 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    <a
-                      href={`https://www.oklink.com/xlayer/tx/${pos.depositTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-purple-400 hover:text-purple-300 font-mono shrink-0"
-                    >
-                      TX ↗
-                    </a>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={`https://www.oklink.com/xlayer/tx/${pos.depositTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-400 hover:text-purple-300 font-mono"
+                      >
+                        TX ↗
+                      </a>
+                      {pos.status === 'active' && (
+                        <button
+                          onClick={() => handleWithdraw(pos.id)}
+                          disabled={withdrawingId === pos.id}
+                          className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {withdrawingId === pos.id ? 'Withdrawing...' : 'Withdraw'}
+                        </button>
+                      )}
+                      {pos.status === 'withdrawn' && pos.withdrawTxHash && (
+                        <a
+                          href={`https://www.oklink.com/xlayer/tx/${pos.withdrawTxHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-gray-500 hover:text-gray-400 font-mono"
+                        >
+                          Withdrawn ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
                 );
               })}

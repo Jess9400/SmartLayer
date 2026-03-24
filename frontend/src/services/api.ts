@@ -103,6 +103,15 @@ export async function getActivePositions() {
   return res.json();
 }
 
+export async function withdrawPosition(id: string) {
+  const res = await fetch(`${BASE}/positions/${id}/withdraw`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Withdraw failed' }));
+    throw new Error(err.error || 'Withdraw failed');
+  }
+  return res.json();
+}
+
 export async function getRebalancerStatus() {
   const res = await fetch(`${BASE}/rebalancer/status`);
   return res.json();
