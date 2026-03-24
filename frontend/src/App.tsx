@@ -543,6 +543,27 @@ export default function App() {
 
       {activePage === 'dashboard' && (<>
 
+        {/* ONBOARDING NUDGE — shown until first deal round runs */}
+        {betaReceived === 0 && (
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-green-500/20 bg-green-500/5 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center shrink-0">
+                <LightningIcon size={15} className="text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">No data yet — run your first deal round</p>
+                <p className="text-xs text-gray-400 mt-0.5">Alpha agents will pitch yield opportunities, Beta scores them and executes the best deal on XLayer.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActivePage('agents')}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition-colors"
+            >
+              Run a Deal →
+            </button>
+          </div>
+        )}
+
         {/* PERFORMANCE DASHBOARD */}
         <PerformanceDashboard
           acceptedDeals={(beta?.memory?.dealsAccepted ?? []) as any[]}
