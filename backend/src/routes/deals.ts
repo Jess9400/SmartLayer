@@ -170,7 +170,7 @@ export function createDealRoutes(
           if (executed.depositTxHash) {
             broadcast({
               type: 'agent_message', agentId: beta.id, agentName: beta.name,
-              message: `🏦 ZeroLend deposit: USDC deposited for yield. TX: ${executed.depositTxHash}`,
+              message: `🏦 ${executed.adapterUsed ?? 'Yield'} deposit: ${executed.swapToAmount ?? 'USDC'} earning yield on-chain. TX: ${executed.depositTxHash}`,
               timestamp: new Date().toISOString(),
             });
           }

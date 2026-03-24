@@ -12,6 +12,8 @@ import { WSMessage } from './types';
 import { ALPHA_AGENTS } from './utils/constants';
 import { contractsConfigured, setupVaultDemo, toBytes32, getVaultBalance } from './services/contracts';
 import { loadCustomAlphas } from './memory/store';
+import { getPositions, getActivePositions, syncPositions } from './memory/positions';
+import { RebalancerAgent } from './agents/rebalancer';
 import { ethers } from 'ethers';
 
 const app = express();
@@ -52,6 +54,14 @@ app.use('/api/deals', createDealRoutes(alphas, beta, broadcast));
 app.use('/api/learning', createLearningRoutes(broadcast));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Position tracking
+app.get('/api/positions', (_req, res) => res.json(getPositions()));
+app.get('/api/positions/active', (_req, res) => res.json(getActivePositions()));
+app.post('/api/positions/sync', async (_req, res) => {
+  const updated = await syncPositions();
+  res.json(updated);
+});
 
 app.get('/api/vault/balance', async (_req, res) => {
   try {
@@ -132,6 +142,20 @@ app.get('/api/contracts', (_req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
+// Rebalancer (initialized after beta is ready)
+let rebalancer: RebalancerAgent;
+
+// Rebalancer routes
+app.get('/api/rebalancer/status', (_req, res) => res.json(rebalancer?.getStatus() ?? { running: false }));
+app.post('/api/rebalancer/check', async (_req, res) => {
+  try {
+    await rebalancer?.runCheck();
+    res.json({ triggered: true });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+  }
+});
+
 // Start listening immediately so Railway healthcheck passes
 server.listen(PORT, () => {
   console.log(`SmartLayer backend running on http://localhost:${PORT}`);
@@ -148,6 +172,10 @@ server.listen(PORT, () => {
         setupVaultDemo(beta.privateKey, beta.walletAddress)
           .catch(e => console.warn('[vault] Setup warning:', e.message));
       }
+
+      // Start autonomous rebalancer
+      rebalancer = new RebalancerAgent(beta.privateKey, beta.walletAddress, broadcast);
+      rebalancer.start();
     })
     .catch(e => console.error('[init] Agent init failed:', e.message));
 });

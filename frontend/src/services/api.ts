@@ -68,6 +68,26 @@ export async function unsubscribeFromAlpha(alphaId: string) {
   return res.json();
 }
 
+export async function getPositions() {
+  const res = await fetch(`${BASE}/positions`);
+  return res.json();
+}
+
+export async function getActivePositions() {
+  const res = await fetch(`${BASE}/positions/active`);
+  return res.json();
+}
+
+export async function getRebalancerStatus() {
+  const res = await fetch(`${BASE}/rebalancer/status`);
+  return res.json();
+}
+
+export async function triggerRebalancerCheck() {
+  const res = await fetch(`${BASE}/rebalancer/check`, { method: 'POST' });
+  return res.json();
+}
+
 export async function registerAlpha(name: string, pitchStyle: string, feeAddress: string) {
   const res = await fetch(`${BASE}/agents/register-alpha`, {
     method: 'POST',

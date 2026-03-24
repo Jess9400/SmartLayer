@@ -1,8 +1,8 @@
 import { Deal } from '../types';
-import { executeNativeTransfer, transferToAddress, executeSwap } from '../services/okx';
+import { executeNativeTransfer, transferToAddress } from '../services/okx';
 import { vaultExecute, contractsConfigured } from '../services/contracts';
-import { TOKENS } from '../utils/constants';
-import { depositUSDCToZeroLend, getUSDCBalance } from '../services/yield';
+import { routeCapital } from '../services/router';
+import { savePosition } from '../memory/positions';
 import { ethers } from 'ethers';
 
 const ALPHA_FEE_PERCENT = 0.03;
@@ -12,7 +12,7 @@ export async function executeDeal(
   betaPrivateKey: string,
   betaAddress: string,
   alphaAddress?: string,
-  userAddress?: string   // vault user — required for on-chain execution
+  userAddress?: string   // vault user — required for on-chain vault execution
 ): Promise<Deal> {
   if (deal.decision !== 'accept' || !deal.investmentAmount) {
     throw new Error('Deal was not accepted or has no investment amount');
@@ -20,7 +20,7 @@ export async function executeDeal(
 
   const cappedAmount = parseFloat(Math.min(deal.investmentAmount, 0.001).toFixed(8));
   const amountWei = ethers.parseUnits(cappedAmount.toFixed(8), 18);
-  const apyBps = Math.round(deal.apy * 100); // e.g. 15.5% → 1550
+  const apyBps = Math.round(deal.apy * 100);
 
   try {
     // ── On-chain path: use SmartLayerVault ──────────────────────────────────
@@ -28,30 +28,36 @@ export async function executeDeal(
       const result = await vaultExecute(
         betaPrivateKey,
         userAddress,
-        deal.pitcherId,        // alphaId (bytes32 resolved in service)
-        betaAddress,           // destination = Beta self (proof of execution in demo)
+        deal.pitcherId,
+        betaAddress,
         amountWei,
         apyBps
       );
 
-      // After vault settles, swap received XETH → USDC via OKX DEX
+      // Route capital: swap XETH → protocol token → deposit into protocol
       const investedWei = (amountWei * 97n / 100n).toString();
-      const swapResult = await executeSwap(
-        betaPrivateKey,
-        TOKENS.USDC,
-        TOKENS.NATIVE_ETH,
-        investedWei,
-        betaAddress
-      ).catch(e => { console.warn('[DEX] Swap failed (non-fatal):', e.message); return null; });
+      const routed = await routeCapital(betaPrivateKey, betaAddress, investedWei, deal);
 
-      // After swap, deposit received USDC into ZeroLend for yield
-      let depositTxHash: string | undefined;
-      if (swapResult) {
-        const usdcBalance = await getUSDCBalance(betaAddress);
-        if (usdcBalance > 0n) {
-          const depositHash = await depositUSDCToZeroLend(betaPrivateKey, usdcBalance, betaAddress);
-          depositTxHash = depositHash || undefined;
-        }
+      // Record position
+      if (routed?.depositTxHash) {
+        const humanAmount = routed.amountDeposited > 0n
+          ? (Number(routed.amountDeposited) / Math.pow(10, routed.tokenDecimals)).toFixed(6)
+          : '0';
+        savePosition({
+          dealId: deal.id,
+          alphaId: deal.pitcherId,
+          alphaName: deal.pitcherAddress || deal.pitcherId,
+          protocol: deal.protocol,
+          adapterUsed: routed.adapterUsed,
+          token: { address: routed.tokenAddress, symbol: routed.tokenSymbol, decimals: routed.tokenDecimals },
+          amountDeposited: humanAmount,
+          amountDepositedRaw: routed.amountDeposited.toString(),
+          entryAPY: deal.apy,
+          depositTxHash: routed.depositTxHash,
+          openedAt: new Date().toISOString(),
+          status: 'active',
+          onBehalfOf: betaAddress,
+        });
       }
 
       return {
@@ -60,39 +66,45 @@ export async function executeDeal(
         txHash: result.txHash,
         alphaFeeAmount: parseFloat(result.feeAmount),
         alphaFeeTxHash: result.txHash,
-        swapTxHash: swapResult || undefined,
-        swapToAmount: swapResult ? 'USDC' : undefined,
-        depositTxHash,
+        swapTxHash: routed?.swapTxHash,
+        swapToAmount: routed?.swapTxHash ? routed.tokenSymbol : undefined,
+        depositTxHash: routed?.depositTxHash,
+        adapterUsed: routed?.adapterUsed,
         status: 'active',
       };
     }
 
-    // ── Fallback: OKX DEX swap (no vault configured) ────────────────────────
-    const swapTxHash = await executeSwap(
-      betaPrivateKey,
-      TOKENS.USDC,
-      TOKENS.NATIVE_ETH,
-      amountWei.toString(),
-      betaAddress
-    ).catch(() => null);
+    // ── Fallback: direct route (no vault configured) ────────────────────────
+    const routed = await routeCapital(betaPrivateKey, betaAddress, amountWei.toString(), deal);
 
-    // If DEX swap fails, fall back to native transfer as proof of execution
-    const txHash = swapTxHash || await executeNativeTransfer(betaPrivateKey, amountWei.toString());
+    // If routing fully failed, fall back to native transfer as proof of execution
+    const txHash = routed?.swapTxHash || await executeNativeTransfer(betaPrivateKey, amountWei.toString());
     if (!txHash) return { ...deal, status: 'failed' };
 
-    // After swap, deposit received USDC into ZeroLend for yield
-    let depositTxHash: string | undefined;
-    if (swapTxHash) {
-      const usdcBalance = await getUSDCBalance(betaAddress);
-      if (usdcBalance > 0n) {
-        const depositHash = await depositUSDCToZeroLend(betaPrivateKey, usdcBalance, betaAddress);
-        depositTxHash = depositHash || undefined;
-      }
+    // Record position
+    if (routed?.depositTxHash) {
+      const humanAmount = routed.amountDeposited > 0n
+        ? (Number(routed.amountDeposited) / Math.pow(10, routed.tokenDecimals)).toFixed(6)
+        : '0';
+      savePosition({
+        dealId: deal.id,
+        alphaId: deal.pitcherId,
+        alphaName: deal.pitcherAddress || deal.pitcherId,
+        protocol: deal.protocol,
+        adapterUsed: routed.adapterUsed,
+        token: { address: routed.tokenAddress, symbol: routed.tokenSymbol, decimals: routed.tokenDecimals },
+        amountDeposited: humanAmount,
+        amountDepositedRaw: routed.amountDeposited.toString(),
+        entryAPY: deal.apy,
+        depositTxHash: routed.depositTxHash,
+        openedAt: new Date().toISOString(),
+        status: 'active',
+        onBehalfOf: betaAddress,
+      });
     }
 
     let alphaFeeTxHash: string | undefined;
     let alphaFeeAmount: number | undefined;
-
     if (alphaAddress) {
       const feeAmount = cappedAmount * ALPHA_FEE_PERCENT;
       const feeWei = ethers.parseUnits(String(feeAmount.toFixed(18)), 18).toString();
@@ -104,9 +116,10 @@ export async function executeDeal(
       ...deal,
       executed: true,
       txHash,
-      swapTxHash: swapTxHash || undefined,
-      swapToAmount: swapTxHash ? 'USDC' : undefined,
-      depositTxHash,
+      swapTxHash: routed?.swapTxHash,
+      swapToAmount: routed?.swapTxHash ? routed.tokenSymbol : undefined,
+      depositTxHash: routed?.depositTxHash,
+      adapterUsed: routed?.adapterUsed,
       alphaFeeAmount,
       alphaFeeTxHash,
       status: 'active',

@@ -13,7 +13,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck } from './services/api';
 
 interface AgentState {
   id: string;
@@ -59,6 +59,22 @@ interface Deal {
   riskLevel?: string;
   audited?: boolean;
   [key: string]: unknown;
+}
+
+interface Position {
+  id: string;
+  protocol: string;
+  adapterUsed: string;
+  token: { symbol: string; decimals: number };
+  amountDeposited: string;
+  entryAPY: number;
+  currentAPY?: number;
+  depositTxHash: string;
+  openedAt: string;
+  status: 'active' | 'withdrawn' | 'rebalancing';
+  onChainBalance?: string;
+  lastCheckedAt?: string;
+  withdrawTxHash?: string;
 }
 
 interface LeaderboardEntry {
@@ -108,6 +124,9 @@ export default function App() {
   const [vaultBalance, setVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [rebalancerStatus, setRebalancerStatus] = useState<{ running: boolean; lastRunAt?: string; rebalanceCount?: number; activePositions?: number } | null>(null);
+  const [isRebalancing, setIsRebalancing] = useState(false);
 
   const { isConnected } = useAccount();
 
@@ -136,6 +155,10 @@ export default function App() {
     }
     if (msg.type === 'learning_update' && msg.data) {
       setLearningData(msg.data);
+    }
+    if (msg.type === 'rebalance_update' || msg.type === 'position_update') {
+      loadPositions();
+      loadRebalancerStatus();
     }
     if (msg.type === 'deal_update' && (msg.deal as Deal)?.status === 'decided') {
       setActiveAlphaIds(new Set());
@@ -182,14 +205,44 @@ export default function App() {
     }
   }
 
+  async function loadPositions() {
+    try {
+      const data = await getActivePositions();
+      setPositions(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('[loadPositions]', e);
+    }
+  }
+
+  async function loadRebalancerStatus() {
+    try {
+      const data = await getRebalancerStatus();
+      setRebalancerStatus(data);
+    } catch (e) {
+      console.error('[loadRebalancerStatus]', e);
+    }
+  }
+
+  async function handleManualRebalance() {
+    setIsRebalancing(true);
+    try {
+      await triggerRebalancerCheck();
+      await Promise.all([loadPositions(), loadRebalancerStatus()]);
+    } finally {
+      setIsRebalancing(false);
+    }
+  }
+
   useEffect(() => {
-    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance()])
+    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance(), loadPositions(), loadRebalancerStatus()])
       .finally(() => setIsLoading(false));
     const interval = setInterval(() => {
       loadAgents();
       loadLeaderboard();
       loadVaultBalance();
-    }, 10000);
+      loadPositions();
+      loadRebalancerStatus();
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -200,7 +253,7 @@ export default function App() {
     setRoundCount(prev => prev + 1);
     try {
       await startDealRound();
-      await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance()]);
+      await Promise.all([loadAgents(), loadLeaderboard(), loadVaultBalance(), loadPositions()]);
     } finally {
       setIsRunning(false);
       setActiveAlphaIds(new Set());
@@ -532,6 +585,80 @@ export default function App() {
               isRunning={isLearning}
             />
           </div>
+        </div>
+
+        {/* ACTIVE POSITIONS */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CoinsIcon size={16} className="text-purple-400" />
+              <span className="text-white font-semibold text-sm">Active Yield Positions</span>
+              {positions.length > 0 && (
+                <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full px-2 py-0.5">{positions.length}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {rebalancerStatus && (
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${rebalancerStatus.running ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-gray-700/50 text-gray-500 border-gray-700'}`}>
+                  {rebalancerStatus.running ? '● Rebalancer active' : '○ Rebalancer off'}
+                </span>
+              )}
+              <button
+                onClick={handleManualRebalance}
+                disabled={isRebalancing}
+                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 disabled:opacity-50 transition-colors"
+              >
+                {isRebalancing ? 'Checking...' : 'Check Now'}
+              </button>
+            </div>
+          </div>
+
+          {positions.length === 0 ? (
+            <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
+              <p className="text-gray-500 text-sm font-medium mb-1">No active positions</p>
+              <p className="text-gray-600 text-xs">Capital will be deployed here after a successful deal round</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {positions.map(pos => {
+                const apyDiff = pos.currentAPY !== undefined ? pos.currentAPY - pos.entryAPY : 0;
+                const apyColor = apyDiff >= 0 ? 'text-green-400' : 'text-red-400';
+                const statusColor = pos.status === 'active' ? 'bg-green-500/10 text-green-400 border-green-500/30' : pos.status === 'rebalancing' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' : 'bg-gray-700/50 text-gray-500 border-gray-600';
+                return (
+                  <div key={pos.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-700/50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-white text-sm font-medium">{pos.adapterUsed}</span>
+                        <span className="text-gray-500 text-xs">{pos.token.symbol}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full border ${statusColor}`}>{pos.status}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span>{pos.amountDeposited} {pos.token.symbol} deposited</span>
+                        <span className="text-gray-600">·</span>
+                        <span>Entry APY: <span className="text-white">{pos.entryAPY.toFixed(1)}%</span></span>
+                        {pos.currentAPY !== undefined && (
+                          <><span className="text-gray-600">·</span><span>Now: <span className={apyColor}>{pos.currentAPY.toFixed(1)}%</span>{apyDiff !== 0 && <span className={apyColor}> ({apyDiff > 0 ? '+' : ''}{apyDiff.toFixed(1)}%)</span>}</span></>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={`https://www.oklink.com/xlayer/tx/${pos.depositTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-purple-400 hover:text-purple-300 font-mono shrink-0"
+                    >
+                      TX ↗
+                    </a>
+                  </div>
+                );
+              })}
+              {rebalancerStatus?.lastRunAt && (
+                <p className="text-xs text-gray-600 text-right pt-1">
+                  Last checked: {new Date(rebalancerStatus.lastRunAt).toLocaleTimeString()} · {rebalancerStatus.rebalanceCount ?? 0} rebalance(s)
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Leaderboard */}

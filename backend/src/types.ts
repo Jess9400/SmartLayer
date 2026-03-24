@@ -70,13 +70,36 @@ export interface Deal {
   swapTxHash?: string;
   swapToAmount?: string;  // USDC received
 
-  // ZeroLend deposit (on-chain yield)
+  // On-chain yield deposit (via adapter)
   depositTxHash?: string;
+  adapterUsed?: string;
 
   // Outcome
   status: 'pitching' | 'analyzing' | 'decided' | 'executing' | 'active' | 'completed' | 'failed';
   actualReturn?: number;
   actualApy?: number;
+}
+
+export interface Position {
+  id: string;
+  dealId: string;
+  alphaId: string;
+  alphaName: string;
+  protocol: string;
+  adapterUsed: string;
+  token: { address: string; symbol: string; decimals: number };
+  amountDeposited: string;       // human-readable (e.g. "12.5")
+  amountDepositedRaw: string;    // bigint serialized as string
+  entryAPY: number;
+  depositTxHash: string;
+  openedAt: string;
+  status: 'active' | 'withdrawn' | 'rebalancing';
+  onBehalfOf: string;
+  currentAPY?: number;
+  onChainBalance?: string;       // raw bigint as string
+  lastCheckedAt?: string;
+  withdrawTxHash?: string;
+  closedAt?: string;
 }
 
 export interface AgentMemory {
@@ -121,7 +144,7 @@ export interface AgentState {
 }
 
 export interface WSMessage {
-  type: 'agent_message' | 'deal_update' | 'deal_executed' | 'analysis_update' | 'learning_update' | 'error';
+  type: 'agent_message' | 'deal_update' | 'deal_executed' | 'analysis_update' | 'learning_update' | 'rebalance_update' | 'position_update' | 'error';
   agentId?: string;
   agentName?: string;
   message?: string;
