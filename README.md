@@ -137,16 +137,26 @@ Every execution: 97% goes to the deal destination, 3% fee goes to the winning Al
 ```
 Beta accepts deal
       │
-      ├─ 1. OKX DEX Aggregator  ──► optimal swap route for XLayer pools
+      ├─ 1. SmartLayerVault.execute()  ──► atomic 97/3 XETH split on-chain
+      │        ├─ 97% → Capital Router
+      │        └─ 3%  → Alpha fee wallet  (Native Transfer)
       │
-      ├─ 2. SmartLayerVault.execute()  ──► atomic 97/3 XETH split on-chain
-      │        ├─ 97% → yield destination  (Native Transfer)
-      │        └─ 3%  → Alpha fee wallet   (Native Transfer)
+      ├─ 2. Capital Router
+      │        ├─ OKX DEX Aggregator  ──► swap XETH → USDC (optimal route)
+      │        └─ Protocol Adapter    ──► deposit USDC into yield protocol
       │
-      └─ 3. ReputationRegistry.recordDeal()  ──► on-chain score updated
+      ├─ 3. ZeroLend supply()  ──► USDC earning yield on XLayer Mainnet
+      │
+      └─ 4. ReputationRegistry.recordDeal()  ──► on-chain score updated
 ```
 
-Every executed deal is verifiable on [OKLink XLayer Explorer](https://www.oklink.com/xlayer). The HMAC-SHA256 signed OKX API calls are in `backend/src/services/okx.ts`.
+| API | Endpoint | Usage |
+|-----|----------|-------|
+| **DEX Aggregator v6** | `/api/v6/dex/aggregator/swap` | Swaps XETH → USDC after every accepted deal; HMAC-SHA256 signed |
+| **Wallet / Balance** | XLayer RPC via OnchainOS | Live XETH balance queries before every deal round |
+| **Native Transfer** | Direct XETH | Atomic 97/3 split in SmartLayerVault |
+
+Every executed deal is verifiable on [OKLink XLayer Explorer](https://www.oklink.com/xlayer). The signed OKX API calls are in `backend/src/services/okx.ts`.
 
 ---
 
@@ -282,15 +292,47 @@ You withdraw anytime via `SmartLayerVault.withdraw()` — non-custodial at all t
 │            ┌───────────┴───────────┐                           │
 │            │                       │                           │
 │     97% → Execute TX        3% → Fee TX                        │
-│            │                       │                           │
-│            └───────────┬───────────┘                           │
-│                        ▼                                       │
-│   ┌─────────────────────────────────────────────────────┐     │
-│   │             SmartLayerVault (Mainnet)                │     │
-│   │  AgentRegistry · ReputationRegistry · DeFiLlama      │     │
-│   └─────────────────────────────────────────────────────┘     │
+│            │                                                   │
+│     Capital Router                                             │
+│            ├─ OKX DEX  ──► XETH → USDC                        │
+│            └─ AdapterRegistry                                  │
+│                   └─ ZeroLendAdapter ──► supply() on-chain     │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────┐      │
+│  │  SmartLayerVault · AgentRegistry · ReputationRegistry│      │
+│  │  Position Manager · Rebalancer (30 min interval)     │      │
+│  └──────────────────────────────────────────────────────┘      │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Autonomous Yield Infrastructure
+
+SmartLayer implements a full protocol-agnostic yield routing stack:
+
+```
+Capital Router
+      │
+      ├─ AdapterRegistry  ──► maps protocol name → adapter at runtime
+      │       ├─ ZeroLendAdapter  (live — USDC lending on XLayer)
+      │       ├─ IzumiAdapter     (stub — falls back to ZeroLend)
+      │       └─ [NewProtocol]    ──► add 1 file to support any future protocol
+      │
+      ├─ Position Manager  ──► persists open positions, reads aToken balance on-chain
+      │
+      └─ Rebalancer Agent  ──► runs every 30 min, exits positions if APY drops >40%
+                                 or falls below 1%, then triggers a new deal round
+```
+
+**Adding a new protocol** when it launches on XLayer is one file:
+
+```typescript
+// adapters/AaveAdapter.ts — implement IYieldAdapter (deposit, withdraw, getBalance, getAPY)
+registry.set('aave', new AaveAdapter()); // AdapterRegistry.ts — one line
+```
+
+The router, rebalancer, position manager, and execution flow all pick it up automatically.
 
 ---
 
@@ -300,12 +342,13 @@ SmartLayer is early-stage infrastructure for an AI-powered investment marketplac
 
 | Phase | Feature |
 |-------|---------|
-| **V2** | Alpha webhook model — external Alphas bring their own AI model and backend, SmartLayer calls their endpoint |
+| **V2** | Additional protocol adapters as XLayer DeFi ecosystem grows (Aave, Compound, new DEX LPs) |
+| **V2** | Alpha webhook model — external Alphas bring their own AI model; SmartLayer calls their endpoint |
 | **V2** | Per-protocol Alpha wallets — full economic isolation, no shared keys |
 | **V2** | User-configurable Beta risk profiles (max APY, max allocation per deal, blocked protocols) |
-| **V3** | Realized yield tracking — Beta verifies actual returns against projected APY |
-| **V3** | Multi-chain Alpha agents (Ethereum, Arbitrum, Base pitching to XLayer Beta) |
-| **V3** | Alpha agent staking — Alphas stake to pitch, lose stake on repeated bad deals |
+| **V3** | Realized yield tracking — Beta verifies actual returns against projected APY on-chain |
+| **V3** | Multi-chain support — Alphas on Ethereum, Arbitrum, Base pitching to XLayer Beta |
+| **V3** | Alpha agent staking — Alphas stake to pitch, lose stake on repeated rejected deals |
 | **V4** | Open Beta marketplace — any user deploys a personal Beta agent, subscribes to any Alpha |
 
 The long-term vision: a **permissionless, reputation-gated investment network** where the best yield sources compete for user capital, and AI agents handle all execution — with the blockchain as the source of truth for every decision.
@@ -318,10 +361,11 @@ The long-term vision: a **permissionless, reputation-gated investment network** 
 SmartLayer/
 ├── backend/
 │   └── src/
-│       ├── agents/          # Alpha (3 personas) + Beta agent logic
-│       ├── deals/           # Vault execution + 3% fee split
-│       ├── memory/          # Deal storage, reputation, subscriptions
-│       ├── services/        # Claude AI, OKX, DeFiLlama, contracts
+│       ├── adapters/        # IYieldAdapter + ZeroLendAdapter + IzumiAdapter + registry
+│       ├── agents/          # Alpha (3 personas) + Beta + RebalancerAgent
+│       ├── deals/           # Vault execution + capital router + 3% fee split
+│       ├── memory/          # Deal store, position manager, learning, subscriptions
+│       ├── services/        # Claude AI, OKX DEX, DeFiLlama, contracts, router
 │       ├── routes/          # REST + WebSocket API
 │       └── utils/           # Prompts + Alpha agent constants
 │
@@ -412,8 +456,16 @@ GET  /api/deals/history/:agentId   Last 10 deals for a specific Alpha
 GET  /api/deals/opportunities      Live yield data from DeFiLlama
 POST /api/deals/round              Run competitive deal round
 
+GET  /api/positions                All yield positions (active + closed)
+GET  /api/positions/active         Active positions only
+POST /api/positions/sync           Refresh APY + on-chain balances
+
+GET  /api/rebalancer/status        Rebalancer running state + last check time
+POST /api/rebalancer/check         Trigger manual rebalance check
+
 GET  /api/contracts                Contract addresses
-GET  /api/vault/debug              On-chain vault state
+GET  /api/vault/balance            Beta vault balance
+GET  /api/vault/debug              Full on-chain vault state
 POST /api/learning/analyze         Run Beta learning cycle
 GET  /api/learning/patterns        Beta's learned patterns
 ```
