@@ -199,9 +199,15 @@ export default function App() {
     setRegistryLoading(true);
     try {
       const data = await getRegistry();
-      setRegistry(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        setRegistry(data);
+      } else {
+        console.error('[loadRegistry] unexpected response:', data);
+        setRegistry([]);
+      }
     } catch (e) {
-      console.error('[loadRegistry]', e);
+      console.error('[loadRegistry] fetch failed:', e);
+      setRegistry([]);
     } finally {
       setRegistryLoading(false);
     }

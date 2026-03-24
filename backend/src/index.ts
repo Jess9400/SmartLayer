@@ -68,6 +68,13 @@ app.post('/api/positions/sync', async (_req, res) => {
   res.json(updated);
 });
 
+// Force-close all active positions (use when on-chain balance is already 0)
+app.post('/api/positions/clear', (_req, res) => {
+  const { updatePosition } = require('./memory/positions');
+  getActivePositions().forEach(p => updatePosition(p.id, { status: 'withdrawn' }));
+  res.json({ cleared: true });
+});
+
 app.post('/api/positions/:id/withdraw', async (req, res) => {
   const { updatePosition } = await import('./memory/positions');
   const { getAdapter } = await import('./adapters/AdapterRegistry');
@@ -84,7 +91,11 @@ app.post('/api/positions/:id/withdraw', async (req, res) => {
       pos.onBehalfOf
     );
     if (!result) { res.status(500).json({ error: 'Withdraw returned null' }); return; }
-    updatePosition(pos.id, { status: 'withdrawn', withdrawTxHash: result.txHash });
+    // MaxUint256 withdrawal clears the entire pool balance — mark all same-adapter+token positions as withdrawn
+    const allPositions = getPositions();
+    allPositions
+      .filter(p => p.status === 'active' && p.adapterUsed === pos.adapterUsed && p.token.symbol === pos.token.symbol)
+      .forEach(p => updatePosition(p.id, { status: 'withdrawn', withdrawTxHash: result.txHash }));
     res.json({ txHash: result.txHash, positionId: pos.id });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Withdraw failed' });
