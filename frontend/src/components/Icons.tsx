@@ -244,6 +244,20 @@ export function ScaleIcon({ className = '', size = 16 }: IconProps) {
   );
 }
 
+/** Target / goal — crosshair bullseye */
+export function TargetIcon({ className = '', size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="12" y1="2" x2="12" y2="8" />
+      <line x1="12" y1="16" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="8" y2="12" />
+      <line x1="16" y1="12" x2="22" y2="12" />
+    </svg>
+  );
+}
+
 // ─── Rank Badge ────────────────────────────────────────────────────────────────
 
 export function RankBadge({ rank }: { rank: number }) {

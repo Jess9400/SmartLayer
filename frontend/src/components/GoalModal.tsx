@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserGoal } from '../services/api';
+import { TargetIcon } from './Icons';
 
 interface Props {
   currentGoal: UserGoal | null;
@@ -43,9 +44,12 @@ export default function GoalModal({ currentGoal, currentDepositXETH, onSave, onC
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-white font-bold text-lg">Set Your Investment Goal</h2>
-            <p className="text-gray-400 text-xs mt-0.5">Beta will calibrate deal selection to match your target</p>
+          <div className="flex items-center gap-2">
+            <TargetIcon size={18} className="text-green-400" />
+            <div>
+              <h2 className="text-white font-bold text-lg">Set Your Investment Goal</h2>
+              <p className="text-gray-400 text-xs mt-0.5">Beta will calibrate deal selection to match your target</p>
+            </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl transition-colors">×</button>
         </div>
