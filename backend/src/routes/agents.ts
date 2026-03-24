@@ -2,10 +2,10 @@ import { Router, Request, Response } from 'express';
 import { ethers } from 'ethers';
 import { AlphaAgent } from '../agents/alpha';
 import { BetaAgent } from '../agents/beta';
-import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha, saveCustomAlpha } from '../memory/store';
+import { getBetaSubscriptions, subscribeToAlpha, unsubscribeFromAlpha, saveCustomAlpha, loadCustomAlphas, getAlphaLeaderboard } from '../memory/store';
 import { contractsConfigured, registerAlphaOnChain, getOnChainLeaderboard } from '../services/contracts';
 import { getWebhookAlphas, saveWebhookAlpha, deleteWebhookAlpha } from '../memory/webhooks';
-import { AGENT_IDS } from '../utils/constants';
+import { AGENT_IDS, ALPHA_AGENTS } from '../utils/constants';
 
 const router = Router();
 
@@ -142,6 +142,36 @@ export function createAgentRoutes(alphas: AlphaAgent[], beta: BetaAgent) {
     const removed = deleteWebhookAlpha(req.params.id);
     if (!removed) { res.status(404).json({ error: 'Webhook Alpha not found' }); return; }
     res.json({ success: true });
+  });
+
+  // Public registry: all registered Alphas (built-in + platform + webhook) with reputation
+  router.get('/registry', async (_req: Request, res: Response) => {
+    try {
+      const builtIn = ALPHA_AGENTS.map(a => ({ id: a.id, name: a.name, role: a.role, pitchStyle: a.pitchStyle, type: 'built-in' as const, registeredAt: '2026-01-01T00:00:00.000Z' }));
+      const platform = loadCustomAlphas().map(a => ({ id: a.id, name: a.name, role: 'External Alpha', pitchStyle: a.pitchStyle, type: 'platform' as const, registeredAt: a.registeredAt }));
+      const webhooks = getWebhookAlphas().map(a => ({ id: a.id, name: a.name, role: 'Webhook Alpha', pitchStyle: a.pitchStyle, type: 'webhook' as const, registeredAt: a.registeredAt }));
+      const all = [...builtIn, ...platform, ...webhooks];
+
+      // Build score map: on-chain first, then in-memory fallback
+      const scoreMap = new Map<string, { reputationScore: number; totalPitched: number; totalAccepted: number; winRate: number; avgApy: number }>();
+      const inMemory = getAlphaLeaderboard();
+      inMemory.forEach(e => scoreMap.set(e.agentId, e));
+      if (contractsConfigured()) {
+        try {
+          const onChain = await getOnChainLeaderboard(all.map(a => a.id));
+          onChain.filter(Boolean).forEach(e => e && scoreMap.set(e.agentId, e));
+        } catch { /* non-fatal */ }
+      }
+
+      const result = all.map(a => {
+        const s = scoreMap.get(a.id) || { reputationScore: 0, totalPitched: 0, totalAccepted: 0, winRate: 0, avgApy: 0 };
+        return { id: a.id, name: a.name, role: a.role, pitchStyle: a.pitchStyle, type: a.type, registeredAt: a.registeredAt, ...s };
+      });
+
+      res.json(result.sort((a, b) => b.reputationScore - a.reputationScore));
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to fetch registry' });
+    }
   });
 
   router.get('/:id', async (req: Request, res: Response) => {

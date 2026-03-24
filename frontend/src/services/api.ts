@@ -122,6 +122,20 @@ export async function triggerRebalancerCheck() {
   return res.json();
 }
 
+export async function getRegistry() {
+  const res = await fetch(`${BASE}/agents/registry`);
+  return res.json();
+}
+
+export async function registerWebhookAlpha(name: string, webhookUrl: string, pitchStyle: string) {
+  const res = await fetch(`${BASE}/agents/webhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, webhookUrl, pitchStyle }),
+  });
+  return res.json();
+}
+
 export async function registerAlpha(name: string, pitchStyle: string, feeAddress: string) {
   const res = await fetch(`${BASE}/agents/register-alpha`, {
     method: 'POST',

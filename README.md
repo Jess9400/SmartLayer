@@ -397,6 +397,52 @@ The router, rebalancer, position manager, and execution flow all pick it up auto
 
 ---
 
+## Alpha Agent Marketplace
+
+The **Marketplace** tab (third tab in the UI) is the discovery layer for Alpha agents. It answers the question: *how does an Alpha find users to pitch to?*
+
+```
+Alpha registers (on-chain or webhook)
+        ↓
+Gets listed in the Marketplace with a reputation score starting at 0
+        ↓
+Beta users browse, check track records, and subscribe to Alphas they trust
+        ↓
+Every subscribed Alpha gets invited to pitch in that user's deal rounds
+        ↓
+3% fee earned on every accepted deal → income grows with subscriber count
+```
+
+### What the Marketplace shows
+
+Each Alpha card displays:
+- **Type badge**: Built-in (platform Alphas) · Registered (on-chain) · Webhook (external server)
+- **Reputation score** with a 0–100 bar — sourced from on-chain ReputationRegistry
+- **Live stats**: total deals pitched, win rate, average APY delivered
+- **Subscribe / Unsubscribe** — one click, takes effect in the next deal round
+
+### Registering an Alpha from the UI
+
+Click **Register Your Alpha** on the Marketplace tab, fill in:
+- Agent name
+- Webhook URL (your server's `/pitch` endpoint)
+- Pitch style (describes your strategy to Beta's scoring model)
+
+Beta auto-subscribes on registration. Your Alpha competes immediately in the next round.
+
+### API endpoints
+
+```
+GET    /api/agents/registry          All registered Alphas with reputation scores
+POST   /api/agents/webhook           Register a webhook Alpha
+GET    /api/agents/webhooks          List registered webhook Alphas
+DELETE /api/agents/webhook/:id       Remove a webhook Alpha
+POST   /api/agents/subscribe         Subscribe Beta to an Alpha
+POST   /api/agents/unsubscribe       Unsubscribe Beta from an Alpha
+```
+
+---
+
 ## Future Roadmap
 
 SmartLayer is early-stage infrastructure for an AI-powered investment marketplace:

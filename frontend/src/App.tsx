@@ -9,12 +9,13 @@ import DepositModal from './components/DepositModal';
 import GoalModal from './components/GoalModal';
 import Leaderboard from './components/Leaderboard';
 import PerformanceDashboard from './components/PerformanceDashboard';
+import Marketplace from './components/Marketplace';
 import {
   NexusIcon, CitadelIcon, QuantIcon, ShieldIcon, ChainLinkIcon,
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, UserGoal } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, getRegistry, subscribeToAlpha, unsubscribeFromAlpha, registerWebhookAlpha, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -126,7 +127,9 @@ export default function App() {
   const [userVaultBalance, setUserVaultBalance] = useState<string | undefined>(undefined);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(true);
-  const [activePage, setActivePage] = useState<'dashboard' | 'agents'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'agents' | 'marketplace'>('dashboard');
+  const [registry, setRegistry] = useState<any[]>([]);
+  const [registryLoading, setRegistryLoading] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
   const [rebalancerStatus, setRebalancerStatus] = useState<{ running: boolean; lastRunAt?: string; rebalanceCount?: number; activePositions?: number } | null>(null);
   const [isRebalancing, setIsRebalancing] = useState(false);
@@ -189,6 +192,18 @@ export default function App() {
       setBeta(data.beta);
     } catch (e) {
       console.error('[loadAgents]', e);
+    }
+  }
+
+  async function loadRegistry() {
+    setRegistryLoading(true);
+    try {
+      const data = await getRegistry();
+      setRegistry(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('[loadRegistry]', e);
+    } finally {
+      setRegistryLoading(false);
     }
   }
 
@@ -370,6 +385,12 @@ export default function App() {
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'agents' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
                 Execute Strategy
+              </button>
+              <button
+                onClick={() => { setActivePage('marketplace'); loadRegistry(); }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activePage === 'marketplace' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Marketplace
               </button>
             </div>
             <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? 'text-green-400' : 'text-red-400'}`}>
@@ -811,6 +832,17 @@ export default function App() {
           onSubscriptionChange={setSubscribedIds}
         />
       </>)}
+
+      {activePage === 'marketplace' && (
+        <Marketplace
+          registry={registry}
+          subscribedIds={subscribedIds}
+          onSubscribe={async (id) => { await subscribeToAlpha(id); setSubscribedIds(prev => [...prev, id]); }}
+          onUnsubscribe={async (id) => { await unsubscribeFromAlpha(id); setSubscribedIds(prev => prev.filter(s => s !== id)); }}
+          onRegisterWebhook={async (name, webhookUrl, pitchStyle) => { await registerWebhookAlpha(name, webhookUrl, pitchStyle); await loadRegistry(); }}
+          isLoading={registryLoading}
+        />
+      )}
 
       </main>
 
