@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://jess9400.github.io/SmartLayer"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square" /></a>
   <a href="https://www.oklink.com/xlayer/address/0x9Cee08987CA087164213AF1a757BEB646c5c6A96"><img src="https://img.shields.io/badge/Mainnet-SmartLayerVault-green?style=flat-square&logo=ethereum" /></a>
+  <a href="https://x.com/LayerSmart34250"><img src="https://img.shields.io/badge/Follow-%40LayerSmart34250-black?style=flat-square&logo=x" /></a>
   <img src="https://img.shields.io/badge/Chain-XLayer%20Mainnet%20196-orange?style=flat-square" />
   <img src="https://img.shields.io/badge/AI-Claude%20Sonnet%204.6-purple?style=flat-square" />
   <img src="https://img.shields.io/badge/Hackathon-XLayer%20OnchainOS%20AI-red?style=flat-square" />
@@ -151,14 +152,68 @@ Every Alpha agent builds a **public, verifiable scorecard**:
 
 ## Agent Economy
 
+SmartLayer creates a **self-reinforcing flywheel** where quality compounds and bad actors are automatically excluded:
+
+```
+Good deals → Beta accepts → 3% fee earned → Reputation rises
+                                                     ↓
+                                        More Betas subscribe
+                                                     ↓
+                                        More capital access
+                                                     ↓
+                                        More fees earned
+```
+
+```
+Bad deals → Beta rejects → 0 fee → Reputation drops
+                                          ↓
+                               Betas unsubscribe
+                                          ↓
+                               No deal flow, no income
+                                          ↓
+                               Forced to improve or exit
+```
+
 | Situation | Outcome |
 |-----------|---------|
 | Alpha pitches poor deals | Beta rejects → 0 fee → reputation drops |
 | Alpha pitches good deals | Beta accepts → 3% fee → reputation rises |
 | Alpha builds high reputation | More subscribers → more capital → more fees |
-| Alpha has low reputation | Subscribers leave → no access |
+| Alpha has low reputation | Subscribers leave → no deal flow |
+| Alpha tries to game Beta | Claude AI scoring detects low-quality pitches |
+| Beta accepts bad deal | Performance tracked on-chain — Beta learns |
+
+**Why top Alphas win disproportionately:** A reputation score of 80+ means Betas allocate 40% of their scoring weight to that Alpha's track record. High-reputation Alphas don't just earn more fees per deal — they get *more deals* because more Betas subscribe. The compounding effect is large: an Alpha with 3 subscribers earning 3% fees earns 10x less than one with 30 subscribers, even if they pitch the same deals.
 
 This creates a **permissionless, AI-filtered investment marketplace** where track record is the only credential — transparent and permanent on XLayer.
+
+---
+
+## How to Become an Alpha or Beta Agent
+
+> **Current state (hackathon demo):** 3 Alpha agents are pre-configured and share one deployer wallet. Beta is a single personal agent. This demonstrates the full architecture — multi-user deployment is V2.
+
+### Becoming an Alpha Agent (Protocol / Fund)
+
+Any protocol or fund can deploy an Alpha agent that pitches yield deals to Beta subscribers:
+
+1. Call `AgentRegistry.registerAlpha(agentId, name, pitchStyle, feeWalletAddress)` on XLayer
+2. Deploy the SmartLayer backend pointed at your Alpha wallet
+3. Beta agents subscribe to your `agentId` — you start receiving deal round invitations
+4. Every accepted deal sends 3% automatically to your `feeWalletAddress` via SmartLayerVault
+
+Your reputation score starts at 0 and builds with every deal pitched. High-quality pitches grow your subscriber base and fee income.
+
+### Becoming a Beta Agent (User)
+
+Any user can run a personal Beta agent that autonomously manages their capital:
+
+1. Deposit XETH into SmartLayerVault and assign your Beta agent address
+2. Subscribe to Alpha agents you want pitching to you
+3. Your Beta agent analyzes every pitch with Claude AI, referencing your deal history and risk profile
+4. Accepted deals execute on-chain automatically — 97% to the yield destination, 3% fee to the Alpha
+
+You withdraw anytime via `SmartLayerVault.withdraw()` — non-custodial at all times.
 
 ---
 
