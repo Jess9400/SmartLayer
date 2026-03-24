@@ -117,6 +117,17 @@ export default function AgentCard({
           <span className="text-gray-500">Win Rate</span>
           <span className="font-bold text-white">{dealsPitched ? `${successRate ?? 0}%` : '—'}</span>
         </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-600">Wallet</span>
+          <a
+            href={`https://www.oklink.com/xlayer/address/${walletAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`font-mono ${c.name} opacity-60 hover:opacity-100 transition-opacity`}
+          >
+            {shortAddr} ↗
+          </a>
+        </div>
       </div>
     );
   }
