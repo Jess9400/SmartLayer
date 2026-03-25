@@ -254,7 +254,7 @@ export function createDealRoutes(
           if (executed.swapTxHash) {
             broadcast({
               type: 'agent_message', agentId: beta.id, agentName: beta.name,
-              message: `🔄 OKX DEX swap: XETH → USDC executed on-chain. TX: ${executed.swapTxHash}`,
+              message: `🔄 OKX DEX swap: XETH → ${executed.swapToAmount ?? 'token'} executed on-chain. TX: ${executed.swapTxHash}`,
               timestamp: new Date().toISOString(),
             });
           }

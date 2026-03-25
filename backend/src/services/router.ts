@@ -16,6 +16,22 @@ import { executeSwap } from './okx';
 import { TOKENS } from '../utils/constants';
 
 const ERC20_ABI = ['function balanceOf(address owner) external view returns (uint256)'];
+const WETH_ABI  = ['function deposit() external payable', 'function balanceOf(address) view returns (uint256)'];
+
+/** Wrap native XETH → WETH directly via WETH contract deposit() — more reliable than OKX DEX routing. */
+async function wrapXethToWeth(privateKey: string, amountWei: string): Promise<string | null> {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const weth = new ethers.Contract(TOKENS.WETH, WETH_ABI, wallet);
+    const tx = await weth.deposit({ value: BigInt(amountWei), gasLimit: 60000n });
+    const receipt = await tx.wait();
+    return receipt?.hash || null;
+  } catch (err) {
+    console.error('[Router] WETH wrap failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
 
 export interface RouteResult {
   adapterUsed: string;
@@ -40,13 +56,12 @@ export async function routeCapital(
   console.log(`[Router] Swapping ${xethAmountWei} XETH → ${token.symbol}...`);
 
   // Step 1: Swap XETH → required token
-  const swapTxHash = await executeSwap(
-    privateKey,
-    token.address,
-    TOKENS.NATIVE_ETH,
-    xethAmountWei,
-    betaAddress
-  ).catch(e => { console.warn('[Router] Swap failed:', e.message); return null; });
+  // For WETH: wrap directly via WETH.deposit() — OKX DEX doesn't reliably route native→WETH on XLayer
+  const isWeth = token.address.toLowerCase() === TOKENS.WETH.toLowerCase();
+  const swapTxHash = isWeth
+    ? await wrapXethToWeth(privateKey, xethAmountWei)
+    : await executeSwap(privateKey, token.address, TOKENS.NATIVE_ETH, xethAmountWei, betaAddress)
+        .catch(e => { console.warn('[Router] Swap failed:', e.message); return null; });
 
   if (!swapTxHash) {
     console.warn('[Router] Swap returned no txHash — aborting deposit');
