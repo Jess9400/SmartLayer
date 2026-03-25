@@ -35,6 +35,7 @@ interface PerformanceDashboardProps {
   userGoal?: UserGoal | null;
   currentDepositXETH?: number;
   onSetGoal?: () => void;
+  isConnected?: boolean;
 }
 
 const ALPHA_SHORT: Record<string, string> = {
@@ -58,7 +59,7 @@ function timeAgo(ts: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived, vaultBalance, onChainStats, userGoal, currentDepositXETH = 0, onSetGoal }: PerformanceDashboardProps) {
+export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived, vaultBalance, onChainStats, userGoal, currentDepositXETH = 0, onSetGoal, isConnected = true }: PerformanceDashboardProps) {
   // Prefer on-chain data; fall back to in-memory computation
   const totalInvested   = onChainStats?.capitalDeployedEth  ?? acceptedDeals.reduce((s, d) => s + (d.investmentAmount ?? 0), 0);
   const avgApy          = onChainStats?.avgApy              ?? (acceptedDeals.length > 0 ? acceptedDeals.reduce((s, d) => s + d.apy, 0) / acceptedDeals.length : 0);
@@ -91,31 +92,31 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
         {[
           {
             icon: <CoinsIcon size={14} className="text-green-400" />,
-            value: hasData ? `${totalInvested.toFixed(5)}` : '—',
+            value: !isConnected ? '——' : hasData ? `${totalInvested.toFixed(5)}` : '—',
             unit: 'XETH',
             label: 'Total Invested',
-            color: hasData ? 'text-green-400' : 'text-gray-600',
+            color: !isConnected ? 'text-gray-700' : hasData ? 'text-green-400' : 'text-gray-600',
           },
           {
             icon: <QuantIcon size={14} className="text-blue-400" />,
-            value: hasData ? `${avgApy.toFixed(1)}%` : '—',
+            value: !isConnected ? '——' : hasData ? `${avgApy.toFixed(1)}%` : '—',
             unit: 'avg',
             label: 'APY Secured',
-            color: hasData ? 'text-blue-400' : 'text-gray-600',
+            color: !isConnected ? 'text-gray-700' : hasData ? 'text-blue-400' : 'text-gray-600',
           },
           {
             icon: <ChainLinkIcon size={14} className="text-purple-400" />,
-            value: hasData ? `${projectedAnnual.toFixed(5)}` : '—',
+            value: !isConnected ? '——' : hasData ? `${projectedAnnual.toFixed(5)}` : '—',
             unit: 'XETH/yr',
             label: 'Projected Return',
-            color: hasData ? 'text-purple-400' : 'text-gray-600',
+            color: !isConnected ? 'text-gray-700' : hasData ? 'text-purple-400' : 'text-gray-600',
           },
           {
             icon: <TrophyIcon size={14} className="text-yellow-400" />,
-            value: hasData ? `${winRate}%` : '—',
-            unit: `${totalAccepted}/${totalPitched}`,
+            value: !isConnected ? '——' : hasData ? `${winRate}%` : '—',
+            unit: !isConnected ? '—/—' : `${totalAccepted}/${totalPitched}`,
             label: 'Deal Win Rate',
-            color: hasData ? 'text-yellow-400' : 'text-gray-600',
+            color: !isConnected ? 'text-gray-700' : hasData ? 'text-yellow-400' : 'text-gray-600',
           },
         ].map(s => (
           <div key={s.label} className="bg-gray-800/60 rounded-xl p-3 text-center">
@@ -127,7 +128,12 @@ export default function PerformanceDashboard({ acceptedDeals, totalDealsReceived
         ))}
       </div>
 
-      {recent.length > 0 ? (
+      {!isConnected ? (
+        <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
+          <p className="text-gray-400 text-sm font-medium mb-1">Connect your wallet to view portfolio</p>
+          <p className="text-gray-600 text-xs">Your investments, APY, and deal history will appear here once connected.</p>
+        </div>
+      ) : recent.length > 0 ? (
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Recent Investments</p>
           <div className="space-y-1.5">

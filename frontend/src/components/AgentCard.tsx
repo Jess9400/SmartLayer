@@ -61,12 +61,13 @@ interface AgentCardProps {
   tagline?: string;
   vaultBalance?: string;
   colorScheme?: ColorScheme;
+  isConnected?: boolean;
 }
 
 export default function AgentCard({
   name, role, balance, walletAddress, dealsPitched, dealsAnalyzed,
   acceptRate, successRate, isActive, side, reputationScore, riskProfile,
-  tagline, vaultBalance, colorScheme = 'purple',
+  tagline, vaultBalance, colorScheme = 'purple', isConnected = true,
 }: AgentCardProps) {
   const shortAddr = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -173,6 +174,11 @@ export default function AgentCard({
         </div>
       </div>
 
+      {!isConnected && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-center">
+          <span className="text-yellow-400 text-xs font-medium">Connect wallet to view details</span>
+        </div>
+      )}
       <div className="space-y-2 text-sm">
         {vaultBalance !== undefined && (
           <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
@@ -180,25 +186,25 @@ export default function AgentCard({
               <ChainLinkIcon size={12} className="text-green-400" /> Vault Balance
             </span>
             <span className="font-mono font-bold text-green-300 text-base">
-              {parseFloat(vaultBalance || '0').toFixed(5)} XETH
+              {isConnected ? `${parseFloat(vaultBalance || '0').toFixed(5)} XETH` : '•••••'}
             </span>
           </div>
         )}
         <div className="flex justify-between">
           <span className="text-gray-400">Wallet Balance</span>
-          <span className="font-mono font-bold text-white">{parseFloat(balance || '0').toFixed(4)} XETH</span>
+          <span className="font-mono font-bold text-white">{isConnected ? `${parseFloat(balance || '0').toFixed(4)} XETH` : '•••••'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Wallet</span>
-          <span className="font-mono text-xs text-green-400">{shortAddr}</span>
+          <span className="font-mono text-xs text-green-400">{isConnected ? shortAddr : '••••••••••••'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Deals Reviewed</span>
-          <span className="font-bold text-white">{dealsAnalyzed ?? 0}</span>
+          <span className="font-bold text-white">{isConnected ? (dealsAnalyzed ?? 0) : '—'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Acceptance Rate</span>
-          <span className="font-bold text-white">{acceptRate ?? 0}%</span>
+          <span className="font-bold text-white">{isConnected ? `${acceptRate ?? 0}%` : '—'}</span>
         </div>
       </div>
     </div>

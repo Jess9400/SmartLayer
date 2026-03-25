@@ -624,10 +624,11 @@ export default function App() {
           userGoal={userGoal}
           currentDepositXETH={parseFloat(userVaultBalance || vaultBalance || '0')}
           onSetGoal={() => setShowGoalModal(true)}
+          isConnected={isConnected}
         />
 
-        {/* ACTIVE POSITIONS — only visible when wallet connected */}
-        {isConnected && <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
+        {/* ACTIVE POSITIONS */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CoinsIcon size={16} className="text-purple-400" />
@@ -660,7 +661,7 @@ export default function App() {
             </div>
           </div>
 
-          {walletTokens.length > 0 && (
+          {isConnected && walletTokens.length > 0 && (
             <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-800/30 border border-gray-700/40 mb-2">
               <span className="text-xs text-gray-500 shrink-0">Agent Wallet</span>
               <div className="flex items-center gap-4 flex-wrap">
@@ -674,7 +675,12 @@ export default function App() {
             </div>
           )}
 
-          {positions.length === 0 ? (
+          {!isConnected ? (
+            <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
+              <p className="text-yellow-400 text-sm font-medium mb-1">Connect wallet to view your positions</p>
+              <p className="text-gray-600 text-xs">Active yield positions and token balances will appear here</p>
+            </div>
+          ) : positions.length === 0 ? (
             <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
               <p className="text-gray-500 text-sm font-medium mb-1">No active positions</p>
               <p className="text-gray-600 text-xs">Capital will be deployed here after a successful deal round</p>
@@ -741,7 +747,7 @@ export default function App() {
               )}
             </div>
           )}
-        </div>}
+        </div>
 
         {/* LEARNING PANEL */}
         <div>
@@ -772,6 +778,7 @@ export default function App() {
             side="beta"
             riskProfile={beta?.memory?.riskProfile}
             vaultBalance={vaultBalance}
+            isConnected={isConnected}
           />
         </div>
 
@@ -820,7 +827,7 @@ export default function App() {
               <ChatWindow messages={messages} isRunning={isRunning} onStartRound={handleNewRound} />
             </div>
             <div className="col-span-2">
-              <DealAnalysis deal={activeDeal as never} />
+              <DealAnalysis deal={activeDeal as never} isConnected={isConnected} />
             </div>
           </div>
         </div>

@@ -52,8 +52,8 @@ const RUBRIC = [
   { Icon: GlobeIcon,    label: 'Macro',    desc: 'Market conditions, timing risk',            color: 'text-cyan-400'   },
 ];
 
-export default function DealAnalysis({ deal }: { deal: Deal | null }) {
-  if (!deal) {
+export default function DealAnalysis({ deal, isConnected = true }: { deal: Deal | null; isConnected?: boolean }) {
+  if (!deal || !isConnected) {
     return (
       <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-4 h-full flex flex-col">
         <h3 className="font-bold text-white flex items-center gap-2 mb-4">
@@ -61,6 +61,11 @@ export default function DealAnalysis({ deal }: { deal: Deal | null }) {
           Deal Analysis
         </h3>
         <div className="flex-1 flex flex-col justify-center gap-3">
+          {!isConnected && (
+            <div className="text-center mb-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-yellow-400 text-xs font-medium">Connect wallet to see live deal analysis</p>
+            </div>
+          )}
           <p className="text-gray-600 text-xs uppercase tracking-wider font-medium mb-1">
             How Beta scores each pitch
           </p>
