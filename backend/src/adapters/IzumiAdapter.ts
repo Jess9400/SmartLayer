@@ -125,8 +125,8 @@ export class IzumiAdapter implements IYieldAdapter {
   readonly supportsLP   = true;
 
   getRequiredToken(): TokenSpec {
-    // Router will swap XETH → WETH; we handle WETH→WOKB split internally.
-    return { address: TOKENS.WETH, symbol: 'WETH', decimals: 18 };
+    // Router wraps native OKB → WOKB (reliable on XLayer); we handle WOKB→WETH split internally.
+    return { address: TOKENS.WOKB, symbol: 'WOKB', decimals: 18 };
   }
 
   async deposit(
@@ -140,20 +140,21 @@ export class IzumiAdapter implements IYieldAdapter {
       const provider = getProvider();
       const wallet   = new ethers.Wallet(privateKey, provider);
 
-      // ── Step 1: Split WETH — half stays, half gets swapped to WOKB ──────────
-      const wethToSwap = amount / 2n;
-      const wethToLp   = amount - wethToSwap;
+      // ── Step 1: Split WOKB — half stays for LP, half gets swapped to WETH ───
+      // Router wraps native OKB → WOKB, so we receive WOKB here.
+      const wokbToSwap = amount / 2n;
+      const wokbToLp   = amount - wokbToSwap;
 
-      console.log(`[Izumi] Swapping ${wethToSwap} WETH → WOKB via OKX DEX...`);
-      const quote = await getSwapQuote(TOKENS.WETH, TOKENS.WOKB, wethToSwap.toString(), wallet.address);
-      if (!quote) throw new Error('Could not get WETH→WOKB swap quote from OKX');
+      console.log(`[Izumi] Swapping ${wokbToSwap} WOKB → WETH via OKX DEX...`);
+      const quote = await getSwapQuote(TOKENS.WOKB, TOKENS.WETH, wokbToSwap.toString(), wallet.address);
+      if (!quote) throw new Error('Could not get WOKB→WETH swap quote from OKX');
 
       const txData = JSON.parse(quote.txData) as { to: string; data: string; value?: string; gas?: string };
 
-      // Approve WETH to the OKX router
-      const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
-      console.log(`[Izumi] Approving ${wethToSwap} WETH to OKX router ${txData.to}...`);
-      await (await weth.approve(txData.to, wethToSwap, { gasLimit: 100000n })).wait();
+      // Approve WOKB to the OKX router
+      const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
+      console.log(`[Izumi] Approving ${wokbToSwap} WOKB to OKX router ${txData.to}...`);
+      await (await wokb.approve(txData.to, wokbToSwap, { gasLimit: 100000n })).wait();
 
       // Execute swap
       const swapTx = await wallet.sendTransaction({
@@ -163,13 +164,13 @@ export class IzumiAdapter implements IYieldAdapter {
         gasLimit: BigInt(txData.gas ?? '400000'),
       });
       await swapTx.wait();
-      console.log(`[Izumi] WETH→WOKB swap TX: ${swapTx.hash}`);
+      console.log(`[Izumi] WOKB→WETH swap TX: ${swapTx.hash}`);
 
-      // ── Step 2: Read WOKB balance received ───────────────────────────────────
-      const wokbContract = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, provider);
-      const wokbBalance: bigint = await wokbContract.balanceOf(wallet.address);
-      if (wokbBalance === 0n) throw new Error('WOKB balance is 0 after swap');
-      console.log(`[Izumi] WOKB balance after swap: ${wokbBalance}`);
+      // ── Step 2: Read WETH balance received ───────────────────────────────────
+      const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, provider);
+      const wethBalance: bigint = await weth.balanceOf(wallet.address);
+      if (wethBalance === 0n) throw new Error('WETH balance is 0 after WOKB→WETH swap');
+      console.log(`[Izumi] WETH balance after swap: ${wethBalance}`);
 
       // ── Step 3: Get current pool point for LP range calculation ──────────────
       const pool  = new ethers.Contract(IZUMI_POOL, POOL_ABI, provider);
@@ -180,14 +181,15 @@ export class IzumiAdapter implements IYieldAdapter {
       console.log(`[Izumi] LP range points: [${pl}, ${pr}] (current: ${currentPoint})`);
 
       // ── Step 4: Approve WETH + WOKB to LiquidityManager ─────────────────────
-      const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
+      const wethContract = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
       console.log('[Izumi] Approving WETH + WOKB to LiquidityManager...');
       await Promise.all([
-        (await weth.approve(LIQUIDITY_MANAGER, wethToLp,   { gasLimit: 100000n })).wait(),
-        (await wokb.approve(LIQUIDITY_MANAGER, wokbBalance, { gasLimit: 100000n })).wait(),
+        (await wethContract.approve(LIQUIDITY_MANAGER, wethBalance, { gasLimit: 100000n })).wait(),
+        (await wokb.approve(LIQUIDITY_MANAGER, wokbToLp, { gasLimit: 100000n })).wait(),
       ]);
 
       // ── Step 5: Mint LP position ─────────────────────────────────────────────
+      // tokenX = WETH (0x5a77 < 0xe538 = WOKB), tokenY = WOKB — address-ordered
       const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
       const deadline = Math.floor(Date.now() / 1000) + 600; // 10 min
 
@@ -200,10 +202,10 @@ export class IzumiAdapter implements IYieldAdapter {
           fee:         POOL_FEE,
           pl,
           pr,
-          xLim:        wethToLp,
-          yLim:        wokbBalance,
-          amountXMin:  wethToLp   * 95n / 100n,
-          amountYMin:  wokbBalance * 95n / 100n,
+          xLim:        wethBalance,
+          yLim:        wokbToLp,
+          amountXMin:  wethBalance * 95n / 100n,
+          amountYMin:  wokbToLp   * 95n / 100n,
           deadline,
         },
         { gasLimit: 600000n }

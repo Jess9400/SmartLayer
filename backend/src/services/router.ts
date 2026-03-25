@@ -18,17 +18,20 @@ import { TOKENS } from '../utils/constants';
 const ERC20_ABI = ['function balanceOf(address owner) external view returns (uint256)'];
 const WETH_ABI  = ['function deposit() external payable', 'function balanceOf(address) view returns (uint256)'];
 
-/** Wrap native XETH → WETH directly via WETH contract deposit() — more reliable than OKX DEX routing. */
-async function wrapXethToWeth(privateKey: string, amountWei: string): Promise<string | null> {
+/**
+ * Wrap native OKB → WOKB via WOKB.deposit().
+ * WOKB is the native-wrappable token on XLayer; WETH is bridged ETH and cannot be minted this way.
+ */
+async function wrapNativeToWokb(privateKey: string, amountWei: string): Promise<string | null> {
   try {
     const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
     const wallet = new ethers.Wallet(privateKey, provider);
-    const weth = new ethers.Contract(TOKENS.WETH, WETH_ABI, wallet);
-    const tx = await weth.deposit({ value: BigInt(amountWei), gasLimit: 60000n });
+    const wokb = new ethers.Contract(TOKENS.WOKB, WETH_ABI, wallet);
+    const tx = await wokb.deposit({ value: BigInt(amountWei), gasLimit: 60000n });
     const receipt = await tx.wait();
     return receipt?.hash || null;
   } catch (err) {
-    console.error('[Router] WETH wrap failed:', err instanceof Error ? err.message : err);
+    console.error('[Router] WOKB wrap failed:', err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -56,10 +59,11 @@ export async function routeCapital(
   console.log(`[Router] Swapping ${xethAmountWei} XETH → ${token.symbol}...`);
 
   // Step 1: Swap XETH → required token
-  // For WETH: wrap directly via WETH.deposit() — OKX DEX doesn't reliably route native→WETH on XLayer
-  const isWeth = token.address.toLowerCase() === TOKENS.WETH.toLowerCase();
-  const swapTxHash = isWeth
-    ? await wrapXethToWeth(privateKey, xethAmountWei)
+  // For WOKB: wrap native OKB directly via WOKB.deposit() — reliable on XLayer.
+  // For anything else (including WETH): use OKX DEX.
+  const isWokb = token.address.toLowerCase() === TOKENS.WOKB.toLowerCase();
+  const swapTxHash = isWokb
+    ? await wrapNativeToWokb(privateKey, xethAmountWei)
     : await executeSwap(privateKey, token.address, TOKENS.NATIVE_ETH, xethAmountWei, betaAddress)
         .catch(e => { console.warn('[Router] Swap failed:', e.message); return null; });
 
