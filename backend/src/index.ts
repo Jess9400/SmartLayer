@@ -102,6 +102,35 @@ app.post('/api/positions/:id/withdraw', async (req, res) => {
   }
 });
 
+// /api/vault/tokens → ERC-20 token balances for the agent wallet
+app.get('/api/vault/tokens', async (_req, res) => {
+  const ERC20_ABI = ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'];
+  const TOKENS_LIST = [
+    { symbol: 'USDC', address: '0x74b7f16337b8972027f6196a17a631ac6de26d22', decimals: 6 },
+    { symbol: 'WETH', address: '0x5a77f1443d16ee5761d310e38b62f77f726bc71c', decimals: 18 },
+    { symbol: 'WOKB', address: '0xe538905cf8410324e03a5a23c1c177a474d59b2b', decimals: 18 },
+  ];
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const wallet = beta.walletAddress;
+    const balances = await Promise.all(
+      TOKENS_LIST.map(async (t) => {
+        try {
+          const contract = new ethers.Contract(t.address, ERC20_ABI, provider);
+          const raw: bigint = await contract.balanceOf(wallet);
+          const formatted = (Number(raw) / 10 ** t.decimals).toFixed(t.decimals === 6 ? 2 : 5);
+          return { symbol: t.symbol, balance: formatted, raw: raw.toString() };
+        } catch {
+          return { symbol: t.symbol, balance: '0', raw: '0' };
+        }
+      })
+    );
+    res.json({ address: wallet, tokens: balances });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Failed to fetch token balances' });
+  }
+});
+
 // /api/vault/balance          → Beta's balance
 // /api/vault/balance?address= → specific user's balance
 app.get('/api/vault/balance', async (req, res) => {

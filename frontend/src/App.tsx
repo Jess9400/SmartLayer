@@ -15,7 +15,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, syncPositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, getRegistry, subscribeToAlpha, unsubscribeFromAlpha, registerWebhookAlpha, UserGoal } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, syncPositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, getRegistry, subscribeToAlpha, unsubscribeFromAlpha, registerWebhookAlpha, getWalletTokens, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -140,6 +140,7 @@ export default function App() {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [walletTokens, setWalletTokens] = useState<{ symbol: string; balance: string }[]>([]);
 
   const { isConnected, address: connectedAddress } = useAccount();
 
@@ -250,6 +251,15 @@ export default function App() {
     }
   }
 
+  async function loadWalletTokens() {
+    try {
+      const data = await getWalletTokens();
+      setWalletTokens(data.tokens || []);
+    } catch (e) {
+      console.error('[loadWalletTokens]', e);
+    }
+  }
+
   async function loadPositions() {
     try {
       const data = await getActivePositions();
@@ -305,7 +315,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance(), loadPositions(), loadRebalancerStatus(), loadOnChainStats()])
+    Promise.all([loadAgents(), loadLeaderboard(), loadSubscriptions(), loadVaultBalance(), loadPositions(), loadRebalancerStatus(), loadOnChainStats(), loadWalletTokens()])
       .finally(() => setIsLoading(false));
     const interval = setInterval(() => {
       loadAgents();
@@ -314,6 +324,7 @@ export default function App() {
       loadPositions();
       loadRebalancerStatus();
       loadOnChainStats();
+      loadWalletTokens();
       if (connectedAddress) loadUserVaultBalance(connectedAddress);
     }, 30000);
     return () => clearInterval(interval);
@@ -648,6 +659,20 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {walletTokens.length > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-800/30 border border-gray-700/40 mb-2">
+              <span className="text-xs text-gray-500 shrink-0">Agent Wallet</span>
+              <div className="flex items-center gap-4 flex-wrap">
+                {walletTokens.map(t => (
+                  <span key={t.symbol} className="text-xs font-mono">
+                    <span className="text-gray-400">{t.symbol} </span>
+                    <span className={parseFloat(t.balance) > 0 ? 'text-green-300' : 'text-gray-600'}>{t.balance}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {positions.length === 0 ? (
             <div className="border border-dashed border-gray-700 rounded-xl p-4 text-center">
