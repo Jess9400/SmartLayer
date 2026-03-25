@@ -270,7 +270,7 @@ app.get('/api/contracts', (_req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3001; // v2
+const PORT = process.env.PORT || 3001; // v3
 
 // Rebalancer (initialized after beta is ready)
 let rebalancer: RebalancerAgent;
