@@ -91,22 +91,38 @@ export async function getOnChainBalance(position: Position): Promise<bigint> {
 }
 
 /**
- * Sync all active positions: read on-chain balance and current APY,
- * update records in place. Returns updated positions.
+ * Sync all positions:
+ * - Active positions: refresh on-chain balance + APY; mark withdrawn if balance is 0.
+ * - Recently withdrawn positions (last 48 h): re-activate if on-chain balance is still > 0
+ *   (handles orphaned balances left behind after a failed/partial withdrawal).
  */
 export async function syncPositions(): Promise<Position[]> {
-  const active = getActivePositions();
-  for (const pos of active) {
+  const all = readAll();
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+
+  for (const pos of all) {
+    const isActive    = pos.status === 'active';
+    const isRecent    = pos.status === 'withdrawn' && new Date(pos.openedAt).getTime() > cutoff;
+    if (!isActive && !isRecent) continue;
+
     const adapter = getAdapter(pos.adapterUsed);
     const [balance, currentAPY] = await Promise.all([
       getOnChainBalance(pos),
       adapter.getAPY(),
     ]);
-    updatePosition(pos.id, {
-      currentAPY,
-      onChainBalance: balance.toString(),
-      lastCheckedAt: new Date().toISOString(),
-    });
+
+    if (isActive) {
+      if (balance === 0n) {
+        // Balance gone — mark withdrawn
+        updatePosition(pos.id, { status: 'withdrawn', onChainBalance: '0', lastCheckedAt: new Date().toISOString() });
+      } else {
+        updatePosition(pos.id, { currentAPY, onChainBalance: balance.toString(), lastCheckedAt: new Date().toISOString() });
+      }
+    } else if (isRecent && balance > 0n) {
+      // Orphaned on-chain balance — re-activate so the withdraw button reappears
+      updatePosition(pos.id, { status: 'active', currentAPY, onChainBalance: balance.toString(), lastCheckedAt: new Date().toISOString() });
+    }
   }
+
   return getActivePositions();
 }

@@ -15,7 +15,7 @@ import {
   LightningIcon, CoinsIcon, CheckCircleIcon,
 } from './components/Icons';
 import { useWebSocket, WSMessage } from './hooks/useWebSocket';
-import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, getRegistry, subscribeToAlpha, unsubscribeFromAlpha, registerWebhookAlpha, UserGoal } from './services/api';
+import { getAgents, startDealRound, runLearning, getLeaderboard, getSubscriptions, getVaultBalance, getVaultStats, getUserVaultBalance, getActivePositions, syncPositions, getRebalancerStatus, triggerRebalancerCheck, resetMemory, withdrawPosition, getRegistry, subscribeToAlpha, unsubscribeFromAlpha, registerWebhookAlpha, UserGoal } from './services/api';
 
 interface AgentState {
   id: string;
@@ -139,6 +139,7 @@ export default function App() {
   });
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const { isConnected, address: connectedAddress } = useAccount();
 
@@ -288,6 +289,18 @@ export default function App() {
       await Promise.all([loadPositions(), loadRebalancerStatus()]);
     } finally {
       setIsRebalancing(false);
+    }
+  }
+
+  async function handleSyncPositions() {
+    setIsSyncing(true);
+    try {
+      const updated = await syncPositions();
+      setPositions(Array.isArray(updated) ? updated : []);
+    } catch (e) {
+      console.error('[syncPositions]', e);
+    } finally {
+      setIsSyncing(false);
     }
   }
 
@@ -618,6 +631,14 @@ export default function App() {
                   {rebalancerStatus.running ? '● Rebalancer active' : '○ Rebalancer off'}
                 </span>
               )}
+              <button
+                onClick={handleSyncPositions}
+                disabled={isSyncing}
+                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 disabled:opacity-50 transition-colors"
+                title="Sync on-chain balances — recovers orphaned positions"
+              >
+                {isSyncing ? 'Syncing...' : 'Sync'}
+              </button>
               <button
                 onClick={handleManualRebalance}
                 disabled={isRebalancing}

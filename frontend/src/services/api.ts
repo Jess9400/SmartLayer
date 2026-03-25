@@ -103,6 +103,11 @@ export async function getActivePositions() {
   return res.json();
 }
 
+export async function syncPositions() {
+  const res = await fetch(`${BASE}/positions/sync`, { method: 'POST' });
+  return res.json();
+}
+
 export async function withdrawPosition(id: string) {
   const res = await fetch(`${BASE}/positions/${id}/withdraw`, { method: 'POST' });
   if (!res.ok) {
