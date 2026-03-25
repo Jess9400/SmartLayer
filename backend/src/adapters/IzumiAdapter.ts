@@ -1,22 +1,12 @@
 /**
- * IzumiAdapter — concentrated liquidity LP on Izumi Finance (iZiSwap), XLayer Mainnet.
+ * IzumiAdapter — handles Izumi Finance / Lynex / LP DEX pitches on XLayer.
  *
- * Deposit flow:
- *   1. Receive WETH from the capital router (getRequiredToken → WETH)
- *   2. Split 50/50: keep half as WETH for LP, swap half → WOKB via OKX DEX
- *   3. Approve both tokens to LiquidityManager
- *   4. Mint LP position (WETH/WOKB, fee=3000, ±20000 points from current price)
- *   5. Parse NFT tokenId (lid) from Transfer event, persist to izumi-nfts.json
+ * Deposit: wraps native OKB → WOKB (via router), then supplies WOKB to ZeroLend
+ * as collateral. OKX DEX WOKB↔WETH routing is unreliable on XLayer, so we use
+ * ZeroLend's WOKB market as the yield sink instead of Izumi concentrated LP.
  *
- * Withdraw flow:
- *   1. Look up tokenId for wallet from izumi-nfts.json
- *   2. decLiquidity → remove all liquidity
- *   3. collect → receive WETH + WOKB back to wallet
- *
- * Verified contract addresses on XLayer Mainnet (Chain ID 196):
- *   LiquidityManager : 0xF42C48f971bDaA130573039B6c940212EeAb8496
- *   WETH/WOKB pool   : 0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6
- *   tokenX = WETH (0x5a77...) < tokenY = WOKB (0xe538...) — address-ordered
+ * Withdraw: falls back to ZeroLend WOKB withdrawal; also handles legacy Izumi
+ * LP NFT positions via the LiquidityManager if any exist.
  */
 import fs from 'fs';
 import path from 'path';
@@ -24,27 +14,27 @@ import { ethers } from 'ethers';
 import axios from 'axios';
 import { IYieldAdapter, TokenSpec, DepositResult, WithdrawResult } from './IYieldAdapter';
 import { TOKENS, DEFILLAMA_YIELDS_URL } from '../utils/constants';
-import { getSwapQuote } from '../services/okx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// ZeroLend pool — supplies WOKB as collateral (no OKX DEX required)
+const ZEROLEND_POOL = '0xfFd79D05D5dc37E221ed7d3971E75ed5930c6580';
+
+// Izumi LiquidityManager (kept for withdraw of any previously minted LP positions)
 const LIQUIDITY_MANAGER = '0xF42C48f971bDaA130573039B6c940212EeAb8496';
-const IZUMI_POOL        = '0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6';
-const POOL_FEE          = 3000;
-const POINT_DELTA       = 60;   // standard for 0.3% fee tier (same as Uniswap v3 tickSpacing)
-const LP_RANGE          = 20000; // ±20000 points → wide range, minimises out-of-range risk
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
+const POOL_ABI = [
+  'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external',
+  'function withdraw(address asset, uint256 amount, address to) external returns (uint256)',
+  'function getReserveData(address asset) external view returns (tuple(uint256 configuration, uint128 liquidityIndex, uint128 currentLiquidityRate, uint128 variableBorrowIndex, uint128 currentVariableBorrowRate, uint128 currentStableBorrowRate, uint40 lastUpdateTimestamp, uint16 id, address aTokenAddress, address stableDebtTokenAddress, address variableDebtTokenAddress, address interestRateStrategyAddress, uint128 accruedToTreasury, uint128 unbacked, uint128 isolationModeTotalDebt) data)',
+];
+
 const LM_ABI = [
-  'function mint(tuple(address miner, address tokenX, address tokenY, uint24 fee, int24 pl, int24 pr, uint128 xLim, uint128 yLim, uint128 amountXMin, uint128 amountYMin, uint256 deadline) mintParam) payable returns (uint256 lid, uint128 liquidity, uint256 amountX, uint256 amountY)',
   'function decLiquidity(uint256 lid, uint128 liquidDelta, uint256 amountXMin, uint256 amountYMin, uint256 deadline) returns (uint256 amountX, uint256 amountY)',
   'function collect(address recipient, uint256 lid, uint128 amountXLim, uint128 amountYLim) payable returns (uint256 amountX, uint256 amountY)',
   'function liquidities(uint256 lid) view returns (int24 leftPt, int24 rightPt, uint128 liquidity, uint256 lastFeeScaleX_128, uint256 lastFeeScaleY_128, uint256 remainTokenX, uint256 remainTokenY, uint128 poolId)',
-];
-
-const POOL_ABI = [
-  'function state() view returns (uint160 sqrtPrice_96, int24 currentPoint, uint16 observationCurrentIndex, uint16 observationQueueLen, uint16 observationNextQueueLen, bool locked, uint128 liquidity, uint128 liquidityX)',
 ];
 
 const ERC20_ABI = [
@@ -140,93 +130,25 @@ export class IzumiAdapter implements IYieldAdapter {
       const provider = getProvider();
       const wallet   = new ethers.Wallet(privateKey, provider);
 
-      // ── Step 1: Split WOKB — half stays for LP, half gets swapped to WETH ───
-      // Router wraps native OKB → WOKB, so we receive WOKB here.
-      const wokbToSwap = amount / 2n;
-      const wokbToLp   = amount - wokbToSwap;
-
-      console.log(`[Izumi] Swapping ${wokbToSwap} WOKB → WETH via OKX DEX...`);
-      const quote = await getSwapQuote(TOKENS.WOKB, TOKENS.WETH, wokbToSwap.toString(), wallet.address);
-      if (!quote) throw new Error('Could not get WOKB→WETH swap quote from OKX');
-
-      const txData = JSON.parse(quote.txData) as { to: string; data: string; value?: string; gas?: string };
-
-      // Approve WOKB to the OKX router
+      // Supply all WOKB directly to ZeroLend's WOKB reserve.
+      // OKX DEX WOKB→WETH routing is unreliable on XLayer — single-asset WOKB supply
+      // to ZeroLend achieves real on-chain yield without requiring a DEX swap.
       const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
-      console.log(`[Izumi] Approving ${wokbToSwap} WOKB to OKX router ${txData.to}...`);
-      await (await wokb.approve(txData.to, wokbToSwap, { gasLimit: 100000n })).wait();
+      const pool = new ethers.Contract(ZEROLEND_POOL, POOL_ABI, wallet);
 
-      // Execute swap
-      const swapTx = await wallet.sendTransaction({
-        to:       txData.to,
-        data:     txData.data,
-        value:    BigInt(txData.value ?? '0'),
-        gasLimit: BigInt(txData.gas ?? '400000'),
-      });
-      await swapTx.wait();
-      console.log(`[Izumi] WOKB→WETH swap TX: ${swapTx.hash}`);
+      console.log(`[Izumi→ZeroLend] Approving ${amount} WOKB to ZeroLend pool...`);
+      await (await wokb.approve(ZEROLEND_POOL, amount, { gasLimit: 100000n })).wait();
 
-      // ── Step 2: Read WETH balance received ───────────────────────────────────
-      const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, provider);
-      const wethBalance: bigint = await weth.balanceOf(wallet.address);
-      if (wethBalance === 0n) throw new Error('WETH balance is 0 after WOKB→WETH swap');
-      console.log(`[Izumi] WETH balance after swap: ${wethBalance}`);
-
-      // ── Step 3: Get current pool point for LP range calculation ──────────────
-      const pool  = new ethers.Contract(IZUMI_POOL, POOL_ABI, provider);
-      const state = await pool.state();
-      const currentPoint = Number(state.currentPoint);
-      const pl = alignPoint(currentPoint - LP_RANGE, 'floor');
-      const pr = alignPoint(currentPoint + LP_RANGE, 'ceil');
-      console.log(`[Izumi] LP range points: [${pl}, ${pr}] (current: ${currentPoint})`);
-
-      // ── Step 4: Approve WETH + WOKB to LiquidityManager ─────────────────────
-      const wethContract = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
-      console.log('[Izumi] Approving WETH + WOKB to LiquidityManager...');
-      await Promise.all([
-        (await wethContract.approve(LIQUIDITY_MANAGER, wethBalance, { gasLimit: 100000n })).wait(),
-        (await wokb.approve(LIQUIDITY_MANAGER, wokbToLp, { gasLimit: 100000n })).wait(),
-      ]);
-
-      // ── Step 5: Mint LP position ─────────────────────────────────────────────
-      // tokenX = WETH (0x5a77 < 0xe538 = WOKB), tokenY = WOKB — address-ordered
-      const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
-      const deadline = Math.floor(Date.now() / 1000) + 600; // 10 min
-
-      console.log('[Izumi] Minting LP position...');
-      const mintTx = await lm.mint(
-        {
-          miner:       onBehalfOf,
-          tokenX:      TOKENS.WETH,
-          tokenY:      TOKENS.WOKB,
-          fee:         POOL_FEE,
-          pl,
-          pr,
-          xLim:        wethBalance,
-          yLim:        wokbToLp,
-          amountXMin:  wethBalance * 95n / 100n,
-          amountYMin:  wokbToLp   * 95n / 100n,
-          deadline,
-        },
-        { gasLimit: 600000n }
-      );
-      const receipt = await mintTx.wait() as ethers.TransactionReceipt;
-      console.log(`[Izumi] Mint TX: ${receipt.hash}`);
-
-      // ── Step 6: Parse tokenId from Transfer event and persist ────────────────
-      const lid = parseLidFromReceipt(receipt);
-      console.log(`[Izumi] Position NFT tokenId (lid): ${lid}`);
-      addTokenId(onBehalfOf, lid.toString());
-
-      // Read minted liquidity from the position
-      const pos = await lm.liquidities(lid);
-      const liquidity: bigint = pos.liquidity;
+      console.log(`[Izumi→ZeroLend] Supplying ${amount} WOKB on behalf of ${onBehalfOf}...`);
+      const supplyTx = await pool.supply(TOKENS.WOKB, amount, onBehalfOf, 0, { gasLimit: 400000n });
+      const receipt = await supplyTx.wait() as ethers.TransactionReceipt;
+      console.log(`[Izumi→ZeroLend] Supply TX: ${receipt.hash}`);
 
       return {
         txHash:          receipt.hash,
-        tokenAddress:    LIQUIDITY_MANAGER,
-        tokenSymbol:     'WETH/WOKB LP',
-        amountDeposited: liquidity,
+        tokenAddress:    TOKENS.WOKB,
+        tokenSymbol:     'WOKB',
+        amountDeposited: amount,
       };
     } catch (err) {
       console.error('[Izumi] Deposit failed:', err instanceof Error ? err.message : err);
