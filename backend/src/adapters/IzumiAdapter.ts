@@ -1,52 +1,321 @@
 /**
- * IzumiAdapter — stub for Izumi Finance (concentrated liquidity DEX on XLayer).
+ * IzumiAdapter — concentrated liquidity LP on Izumi Finance (iZiSwap), XLayer Mainnet.
  *
- * Izumi uses NFT-based LP positions requiring two tokens. Full implementation
- * needs: token ratio calculation, addLiquidity call, and NFT position tracking.
- * Until implemented, this adapter falls back to ZeroLend transparently.
+ * Deposit flow:
+ *   1. Receive WETH from the capital router (getRequiredToken → WETH)
+ *   2. Split 50/50: keep half as WETH for LP, swap half → WOKB via OKX DEX
+ *   3. Approve both tokens to LiquidityManager
+ *   4. Mint LP position (WETH/WOKB, fee=3000, ±20000 points from current price)
+ *   5. Parse NFT tokenId (lid) from Transfer event, persist to izumi-nfts.json
+ *
+ * Withdraw flow:
+ *   1. Look up tokenId for wallet from izumi-nfts.json
+ *   2. decLiquidity → remove all liquidity
+ *   3. collect → receive WETH + WOKB back to wallet
+ *
+ * Verified contract addresses on XLayer Mainnet (Chain ID 196):
+ *   LiquidityManager : 0xF42C48f971bDaA130573039B6c940212EeAb8496
+ *   WETH/WOKB pool   : 0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6
+ *   tokenX = WETH (0x5a77...) < tokenY = WOKB (0xe538...) — address-ordered
  */
+import fs from 'fs';
+import path from 'path';
+import { ethers } from 'ethers';
+import axios from 'axios';
 import { IYieldAdapter, TokenSpec, DepositResult, WithdrawResult } from './IYieldAdapter';
-import { ZeroLendAdapter } from './ZeroLendAdapter';
-import { TOKENS } from '../utils/constants';
+import { TOKENS, DEFILLAMA_YIELDS_URL } from '../utils/constants';
+import { getSwapQuote } from '../services/okx';
 
-const fallback = new ZeroLendAdapter();
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LIQUIDITY_MANAGER = '0xF42C48f971bDaA130573039B6c940212EeAb8496';
+const IZUMI_POOL        = '0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6';
+const POOL_FEE          = 3000;
+const POINT_DELTA       = 60;   // standard for 0.3% fee tier (same as Uniswap v3 tickSpacing)
+const LP_RANGE          = 20000; // ±20000 points → wide range, minimises out-of-range risk
+
+// ─── ABIs ─────────────────────────────────────────────────────────────────────
+
+const LM_ABI = [
+  'function mint(tuple(address miner, address tokenX, address tokenY, uint24 fee, int24 pl, int24 pr, uint128 xLim, uint128 yLim, uint128 amountXMin, uint128 amountYMin, uint256 deadline) mintParam) payable returns (uint256 lid, uint128 liquidity, uint256 amountX, uint256 amountY)',
+  'function decLiquidity(uint256 lid, uint128 liquidDelta, uint256 amountXMin, uint256 amountYMin, uint256 deadline) returns (uint256 amountX, uint256 amountY)',
+  'function collect(address recipient, uint256 lid, uint128 amountXLim, uint128 amountYLim) payable returns (uint256 amountX, uint256 amountY)',
+  'function liquidities(uint256 lid) view returns (int24 leftPt, int24 rightPt, uint128 liquidity, uint256 lastFeeScaleX_128, uint256 lastFeeScaleY_128, uint256 remainTokenX, uint256 remainTokenY, uint128 poolId)',
+];
+
+const POOL_ABI = [
+  'function state() view returns (uint160 sqrtPrice_96, int24 currentPoint, uint16 observationCurrentIndex, uint16 observationQueueLen, uint16 observationNextQueueLen, bool locked, uint128 liquidity, uint128 liquidityX)',
+];
+
+const ERC20_ABI = [
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function balanceOf(address owner) view returns (uint256)',
+];
+
+// ─── NFT position store ────────────────────────────────────────────────────────
+
+const DATA_DIR  = path.join(__dirname, '../../data');
+const NFT_STORE = path.join(DATA_DIR, 'izumi-nfts.json');
+
+function loadNfts(): Record<string, string[]> {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(NFT_STORE)) return {};
+  try { return JSON.parse(fs.readFileSync(NFT_STORE, 'utf-8')); } catch { return {}; }
+}
+
+function saveNfts(store: Record<string, string[]>): void {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(NFT_STORE, JSON.stringify(store, null, 2));
+}
+
+function addTokenId(address: string, lid: string): void {
+  const store = loadNfts();
+  const key = address.toLowerCase();
+  store[key] = [...(store[key] ?? []), lid];
+  saveNfts(store);
+}
+
+function getTokenIds(address: string): string[] {
+  return loadNfts()[address.toLowerCase()] ?? [];
+}
+
+function removeTokenId(address: string, lid: string): void {
+  const store = loadNfts();
+  const key = address.toLowerCase();
+  store[key] = (store[key] ?? []).filter(id => id !== lid);
+  if (store[key].length === 0) delete store[key];
+  saveNfts(store);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getProvider() {
+  return new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+}
+
+/** Parse the NFT tokenId from an ERC721 Transfer(from=0, to=miner, tokenId) event. */
+function parseLidFromReceipt(receipt: ethers.TransactionReceipt): bigint {
+  const TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
+  const ZERO_PADDED    = ethers.zeroPadValue(ethers.ZeroAddress, 32);
+
+  for (const log of receipt.logs) {
+    if (
+      log.topics.length === 4 &&
+      log.topics[0] === TRANSFER_TOPIC &&
+      log.topics[1] === ZERO_PADDED // from = address(0) → mint event
+    ) {
+      return BigInt(log.topics[3]);
+    }
+  }
+  throw new Error('[Izumi] Transfer(mint) event not found in mint receipt');
+}
+
+/** Align a point to the nearest multiple of POINT_DELTA, rounding toward zero. */
+function alignPoint(point: number, direction: 'floor' | 'ceil'): number {
+  return direction === 'floor'
+    ? Math.floor(point / POINT_DELTA) * POINT_DELTA
+    : Math.ceil(point  / POINT_DELTA) * POINT_DELTA;
+}
+
+// ─── Adapter ──────────────────────────────────────────────────────────────────
 
 export class IzumiAdapter implements IYieldAdapter {
-  readonly protocolId = 'izumi';
-  readonly protocolName = 'ZeroLend';
-  readonly supportsLP = true;
+  readonly protocolId   = 'izumi';
+  readonly protocolName = 'Izumi Finance';
+  readonly supportsLP   = true;
 
   getRequiredToken(): TokenSpec {
-    // LP needs WETH + WOKB, but we fall back to ZeroLend's USDC path
-    return { address: TOKENS.USDC, symbol: 'USDC', decimals: 6 };
+    // Router will swap XETH → WETH; we handle WETH→WOKB split internally.
+    return { address: TOKENS.WETH, symbol: 'WETH', decimals: 18 };
   }
 
   async deposit(
     privateKey: string,
     amount: bigint,
-    token: TokenSpec,
+    _token: TokenSpec,
     onBehalfOf: string
   ): Promise<DepositResult | null> {
-    console.log('[Izumi] LP deposit not yet implemented — routing to ZeroLend');
-    return fallback.deposit(privateKey, amount, token, onBehalfOf);
+    if (amount === 0n) return null;
+    try {
+      const provider = getProvider();
+      const wallet   = new ethers.Wallet(privateKey, provider);
+
+      // ── Step 1: Split WETH — half stays, half gets swapped to WOKB ──────────
+      const wethToSwap = amount / 2n;
+      const wethToLp   = amount - wethToSwap;
+
+      console.log(`[Izumi] Swapping ${wethToSwap} WETH → WOKB via OKX DEX...`);
+      const quote = await getSwapQuote(TOKENS.WETH, TOKENS.WOKB, wethToSwap.toString(), wallet.address);
+      if (!quote) throw new Error('Could not get WETH→WOKB swap quote from OKX');
+
+      const txData = JSON.parse(quote.txData) as { to: string; data: string; value?: string; gas?: string };
+
+      // Approve WETH to the OKX router
+      const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
+      console.log(`[Izumi] Approving ${wethToSwap} WETH to OKX router ${txData.to}...`);
+      await (await weth.approve(txData.to, wethToSwap, { gasLimit: 100000n })).wait();
+
+      // Execute swap
+      const swapTx = await wallet.sendTransaction({
+        to:       txData.to,
+        data:     txData.data,
+        value:    BigInt(txData.value ?? '0'),
+        gasLimit: BigInt(txData.gas ?? '400000'),
+      });
+      await swapTx.wait();
+      console.log(`[Izumi] WETH→WOKB swap TX: ${swapTx.hash}`);
+
+      // ── Step 2: Read WOKB balance received ───────────────────────────────────
+      const wokbContract = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, provider);
+      const wokbBalance: bigint = await wokbContract.balanceOf(wallet.address);
+      if (wokbBalance === 0n) throw new Error('WOKB balance is 0 after swap');
+      console.log(`[Izumi] WOKB balance after swap: ${wokbBalance}`);
+
+      // ── Step 3: Get current pool point for LP range calculation ──────────────
+      const pool  = new ethers.Contract(IZUMI_POOL, POOL_ABI, provider);
+      const state = await pool.state();
+      const currentPoint = Number(state.currentPoint);
+      const pl = alignPoint(currentPoint - LP_RANGE, 'floor');
+      const pr = alignPoint(currentPoint + LP_RANGE, 'ceil');
+      console.log(`[Izumi] LP range points: [${pl}, ${pr}] (current: ${currentPoint})`);
+
+      // ── Step 4: Approve WETH + WOKB to LiquidityManager ─────────────────────
+      const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
+      console.log('[Izumi] Approving WETH + WOKB to LiquidityManager...');
+      await Promise.all([
+        (await weth.approve(LIQUIDITY_MANAGER, wethToLp,   { gasLimit: 100000n })).wait(),
+        (await wokb.approve(LIQUIDITY_MANAGER, wokbBalance, { gasLimit: 100000n })).wait(),
+      ]);
+
+      // ── Step 5: Mint LP position ─────────────────────────────────────────────
+      const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
+      const deadline = Math.floor(Date.now() / 1000) + 600; // 10 min
+
+      console.log('[Izumi] Minting LP position...');
+      const mintTx = await lm.mint(
+        {
+          miner:       onBehalfOf,
+          tokenX:      TOKENS.WETH,
+          tokenY:      TOKENS.WOKB,
+          fee:         POOL_FEE,
+          pl,
+          pr,
+          xLim:        wethToLp,
+          yLim:        wokbBalance,
+          amountXMin:  wethToLp   * 95n / 100n,
+          amountYMin:  wokbBalance * 95n / 100n,
+          deadline,
+        },
+        { gasLimit: 600000n }
+      );
+      const receipt = await mintTx.wait() as ethers.TransactionReceipt;
+      console.log(`[Izumi] Mint TX: ${receipt.hash}`);
+
+      // ── Step 6: Parse tokenId from Transfer event and persist ────────────────
+      const lid = parseLidFromReceipt(receipt);
+      console.log(`[Izumi] Position NFT tokenId (lid): ${lid}`);
+      addTokenId(onBehalfOf, lid.toString());
+
+      // Read minted liquidity from the position
+      const pos = await lm.liquidities(lid);
+      const liquidity: bigint = pos.liquidity;
+
+      return {
+        txHash:          receipt.hash,
+        tokenAddress:    LIQUIDITY_MANAGER,
+        tokenSymbol:     'WETH/WOKB LP',
+        amountDeposited: liquidity,
+      };
+    } catch (err) {
+      console.error('[Izumi] Deposit failed:', err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
   async withdraw(
     privateKey: string,
-    amount: bigint,
-    token: TokenSpec,
+    _amount: bigint,
+    _token: TokenSpec,
     onBehalfOf: string
   ): Promise<WithdrawResult | null> {
-    console.log('[Izumi] LP withdraw not yet implemented — routing to ZeroLend');
-    return fallback.withdraw(privateKey, amount, token, onBehalfOf);
+    const lids = getTokenIds(onBehalfOf);
+    if (lids.length === 0) {
+      console.warn('[Izumi] No tracked NFT positions for', onBehalfOf);
+      return null;
+    }
+    try {
+      const provider = getProvider();
+      const wallet   = new ethers.Wallet(privateKey, provider);
+      const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
+      const deadline = Math.floor(Date.now() / 1000) + 600;
+      const MAX_U128 = (2n ** 128n) - 1n;
+
+      let lastTxHash = '';
+      let totalReceived = 0n;
+
+      for (const lidStr of lids) {
+        const lid = BigInt(lidStr);
+
+        // Read current liquidity
+        const pos       = await lm.liquidities(lid);
+        const liquidity: bigint = pos.liquidity;
+        if (liquidity === 0n) {
+          removeTokenId(onBehalfOf, lidStr);
+          continue;
+        }
+
+        // Remove all liquidity
+        console.log(`[Izumi] Removing liquidity from lid ${lid}...`);
+        const decTx = await lm.decLiquidity(lid, liquidity, 0n, 0n, deadline, { gasLimit: 400000n });
+        await decTx.wait();
+
+        // Collect tokens back to wallet
+        console.log(`[Izumi] Collecting tokens for lid ${lid}...`);
+        const collectTx = await lm.collect(onBehalfOf, lid, MAX_U128, MAX_U128, { gasLimit: 300000n, value: 0n });
+        const collectReceipt = await collectTx.wait() as ethers.TransactionReceipt;
+        console.log(`[Izumi] Collect TX: ${collectReceipt.hash}`);
+
+        lastTxHash    = collectReceipt.hash;
+        totalReceived += pos.remainTokenX + pos.remainTokenY;
+        removeTokenId(onBehalfOf, lidStr);
+      }
+
+      if (!lastTxHash) return null;
+
+      return { txHash: lastTxHash, amountReceived: totalReceived };
+    } catch (err) {
+      console.error('[Izumi] Withdraw failed:', err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
-  async getBalance(address: string, token: TokenSpec): Promise<bigint> {
-    return fallback.getBalance(address, token);
+  async getBalance(address: string, _token: TokenSpec): Promise<bigint> {
+    const lids = getTokenIds(address);
+    if (lids.length === 0) return 0n;
+    try {
+      const provider = getProvider();
+      const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, provider);
+      let total = 0n;
+      for (const lidStr of lids) {
+        const pos = await lm.liquidities(BigInt(lidStr));
+        total += pos.liquidity as bigint;
+      }
+      return total;
+    } catch {
+      return 0n;
+    }
   }
 
-  async getAPY(poolHint?: string): Promise<number> {
-    // Return Izumi APY from DeFiLlama if available, else fallback
-    return fallback.getAPY(poolHint);
+  async getAPY(_poolHint?: string): Promise<number> {
+    try {
+      const { data } = await axios.get(DEFILLAMA_YIELDS_URL, { timeout: 8000 });
+      const pool = data.data.find((p: { project: string; chain: string; apy: number }) =>
+        p.project?.toLowerCase().includes('izumi') &&
+        (p.chain?.toLowerCase().includes('xlayer') || p.chain?.toLowerCase().includes('x layer'))
+      );
+      return pool?.apy ?? 14.0;
+    } catch {
+      return 14.0; // fallback estimate
+    }
   }
 }

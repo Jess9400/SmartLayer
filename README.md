@@ -377,7 +377,7 @@ Capital Router
       │
       ├─ AdapterRegistry  ──► maps protocol name → adapter at runtime
       │       ├─ ZeroLendAdapter  (live — USDC lending on XLayer)
-      │       ├─ IzumiAdapter     (stub — falls back to ZeroLend)
+      │       ├─ IzumiAdapter     (live — WETH/WOKB concentrated liquidity LP on XLayer)
       │       └─ [NewProtocol]    ──► add 1 file to support any future protocol
       │
       ├─ Position Manager  ──► persists open positions, reads aToken balance on-chain
