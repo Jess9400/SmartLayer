@@ -1,12 +1,22 @@
 /**
- * IzumiAdapter — handles Izumi Finance / Lynex / LP DEX pitches on XLayer.
+ * IzumiAdapter — concentrated liquidity LP on Izumi Finance (iZiSwap), XLayer Mainnet.
  *
- * Deposit: wraps native OKB → WOKB (via router), then supplies WOKB to ZeroLend
- * as collateral. OKX DEX WOKB↔WETH routing is unreliable on XLayer, so we use
- * ZeroLend's WOKB market as the yield sink instead of Izumi concentrated LP.
+ * Deposit flow:
+ *   1. Router wraps native OKB → WOKB
+ *   2. Read existing WETH balance from wallet (no DEX swap — OKX unreliable on XLayer)
+ *   3. Approve WETH + WOKB to LiquidityManager
+ *   4. Mint LP position (WETH/WOKB, fee=3000, ±20000 points) with amountMin=0
+ *      so the pool absorbs whatever ratio the current price dictates
  *
- * Withdraw: falls back to ZeroLend WOKB withdrawal; also handles legacy Izumi
- * LP NFT positions via the LiquidityManager if any exist.
+ * Withdraw flow:
+ *   1. Look up tokenId for wallet from izumi-nfts.json
+ *   2. decLiquidity → remove all liquidity
+ *   3. collect → receive WETH + WOKB back to wallet
+ *
+ * Verified contract addresses on XLayer Mainnet (Chain ID 196):
+ *   LiquidityManager : 0xF42C48f971bDaA130573039B6c940212EeAb8496
+ *   WETH/WOKB pool   : 0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6
+ *   tokenX = WETH (0x5a77...) < tokenY = WOKB (0xe538...) — address-ordered
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,24 +27,23 @@ import { TOKENS, DEFILLAMA_YIELDS_URL } from '../utils/constants';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// ZeroLend pool — supplies WOKB as collateral (no OKX DEX required)
-const ZEROLEND_POOL = '0xfFd79D05D5dc37E221ed7d3971E75ed5930c6580';
-
-// Izumi LiquidityManager (kept for withdraw of any previously minted LP positions)
 const LIQUIDITY_MANAGER = '0xF42C48f971bDaA130573039B6c940212EeAb8496';
+const IZUMI_POOL        = '0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6';
+const POOL_FEE          = 3000;
+const POINT_DELTA       = 60;
+const LP_RANGE          = 20000;
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
-const POOL_ABI = [
-  'function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external',
-  'function withdraw(address asset, uint256 amount, address to) external returns (uint256)',
-  'function getReserveData(address asset) external view returns (tuple(uint256 configuration, uint128 liquidityIndex, uint128 currentLiquidityRate, uint128 variableBorrowIndex, uint128 currentVariableBorrowRate, uint128 currentStableBorrowRate, uint40 lastUpdateTimestamp, uint16 id, address aTokenAddress, address stableDebtTokenAddress, address variableDebtTokenAddress, address interestRateStrategyAddress, uint128 accruedToTreasury, uint128 unbacked, uint128 isolationModeTotalDebt) data)',
-];
-
 const LM_ABI = [
+  'function mint(tuple(address miner, address tokenX, address tokenY, uint24 fee, int24 pl, int24 pr, uint128 xLim, uint128 yLim, uint128 amountXMin, uint128 amountYMin, uint256 deadline) mintParam) payable returns (uint256 lid, uint128 liquidity, uint256 amountX, uint256 amountY)',
   'function decLiquidity(uint256 lid, uint128 liquidDelta, uint256 amountXMin, uint256 amountYMin, uint256 deadline) returns (uint256 amountX, uint256 amountY)',
   'function collect(address recipient, uint256 lid, uint128 amountXLim, uint128 amountYLim) payable returns (uint256 amountX, uint256 amountY)',
   'function liquidities(uint256 lid) view returns (int24 leftPt, int24 rightPt, uint128 liquidity, uint256 lastFeeScaleX_128, uint256 lastFeeScaleY_128, uint256 remainTokenX, uint256 remainTokenY, uint128 poolId)',
+];
+
+const POOL_ABI = [
+  'function state() view returns (uint160 sqrtPrice_96, int24 currentPoint, uint16 observationCurrentIndex, uint16 observationQueueLen, uint16 observationNextQueueLen, bool locked, uint128 liquidity, uint128 liquidityX)',
 ];
 
 const ERC20_ABI = [
@@ -130,25 +139,71 @@ export class IzumiAdapter implements IYieldAdapter {
       const provider = getProvider();
       const wallet   = new ethers.Wallet(privateKey, provider);
 
-      // Supply all WOKB directly to ZeroLend's WOKB reserve.
-      // OKX DEX WOKB→WETH routing is unreliable on XLayer — single-asset WOKB supply
-      // to ZeroLend achieves real on-chain yield without requiring a DEX swap.
+      // amount = WOKB received from router (native OKB → WOKB wrap)
+      const wokbAmount = amount;
+
+      // Use existing WETH balance — no DEX swap needed.
+      // OKX DEX WOKB→WETH is unreliable on XLayer; any WETH already in the wallet
+      // (from prior interactions) is sufficient to pair with WOKB for the LP.
+      const wethContract = new ethers.Contract(TOKENS.WETH, ERC20_ABI, provider);
+      const wethBalance: bigint = await wethContract.balanceOf(wallet.address);
+      console.log(`[Izumi] WETH balance: ${wethBalance}, WOKB to LP: ${wokbAmount}`);
+
+      if (wethBalance === 0n) throw new Error('[Izumi] No WETH in wallet — cannot mint LP');
+
+      // ── Get current pool point ────────────────────────────────────────────────
+      const pool  = new ethers.Contract(IZUMI_POOL, POOL_ABI, provider);
+      const state = await pool.state();
+      const currentPoint = Number(state.currentPoint);
+      const pl = alignPoint(currentPoint - LP_RANGE, 'floor');
+      const pr = alignPoint(currentPoint + LP_RANGE, 'ceil');
+      console.log(`[Izumi] LP range: [${pl}, ${pr}] current: ${currentPoint}`);
+
+      // ── Approve both tokens ───────────────────────────────────────────────────
+      const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
       const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
-      const pool = new ethers.Contract(ZEROLEND_POOL, POOL_ABI, wallet);
+      console.log('[Izumi] Approving WETH + WOKB to LiquidityManager...');
+      await Promise.all([
+        (await weth.approve(LIQUIDITY_MANAGER, wethBalance, { gasLimit: 100000n })).wait(),
+        (await wokb.approve(LIQUIDITY_MANAGER, wokbAmount,  { gasLimit: 100000n })).wait(),
+      ]);
 
-      console.log(`[Izumi→ZeroLend] Approving ${amount} WOKB to ZeroLend pool...`);
-      await (await wokb.approve(ZEROLEND_POOL, amount, { gasLimit: 100000n })).wait();
+      // ── Mint LP — amountMin=0 so pool accepts any ratio ───────────────────────
+      const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
+      const deadline = Math.floor(Date.now() / 1000) + 600;
 
-      console.log(`[Izumi→ZeroLend] Supplying ${amount} WOKB on behalf of ${onBehalfOf}...`);
-      const supplyTx = await pool.supply(TOKENS.WOKB, amount, onBehalfOf, 0, { gasLimit: 400000n });
-      const receipt = await supplyTx.wait() as ethers.TransactionReceipt;
-      console.log(`[Izumi→ZeroLend] Supply TX: ${receipt.hash}`);
+      console.log('[Izumi] Minting WETH/WOKB LP position...');
+      const mintTx = await lm.mint(
+        {
+          miner:      onBehalfOf,
+          tokenX:     TOKENS.WETH,
+          tokenY:     TOKENS.WOKB,
+          fee:        POOL_FEE,
+          pl,
+          pr,
+          xLim:       wethBalance,
+          yLim:       wokbAmount,
+          amountXMin: 0n,   // accept any ratio — small amounts, liquidity not the goal
+          amountYMin: 0n,
+          deadline,
+        },
+        { gasLimit: 600000n }
+      );
+      const receipt = await mintTx.wait() as ethers.TransactionReceipt;
+      console.log(`[Izumi] Mint TX: ${receipt.hash}`);
+
+      const lid = parseLidFromReceipt(receipt);
+      console.log(`[Izumi] LP NFT tokenId: ${lid}`);
+      addTokenId(onBehalfOf, lid.toString());
+
+      const pos = await lm.liquidities(lid);
+      const liquidity: bigint = pos.liquidity;
 
       return {
         txHash:          receipt.hash,
-        tokenAddress:    TOKENS.WOKB,
-        tokenSymbol:     'WOKB',
-        amountDeposited: amount,
+        tokenAddress:    LIQUIDITY_MANAGER,
+        tokenSymbol:     'WETH/WOKB LP',
+        amountDeposited: liquidity,
       };
     } catch (err) {
       console.error('[Izumi] Deposit failed:', err instanceof Error ? err.message : err);
