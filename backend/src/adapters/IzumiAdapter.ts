@@ -159,14 +159,14 @@ export class IzumiAdapter implements IYieldAdapter {
       const pr = alignPoint(currentPoint + LP_RANGE, 'ceil');
       console.log(`[Izumi] LP range: [${pl}, ${pr}] current: ${currentPoint}`);
 
-      // ── Approve both tokens ───────────────────────────────────────────────────
+      // ── Approve both tokens (sequential + bumped gas to clear any stuck txs) ──
       const weth = new ethers.Contract(TOKENS.WETH, ERC20_ABI, wallet);
       const wokb = new ethers.Contract(TOKENS.WOKB, ERC20_ABI, wallet);
-      console.log('[Izumi] Approving WETH + WOKB to LiquidityManager...');
-      await Promise.all([
-        (await weth.approve(LIQUIDITY_MANAGER, wethBalance, { gasLimit: 100000n })).wait(),
-        (await wokb.approve(LIQUIDITY_MANAGER, wokbAmount,  { gasLimit: 100000n })).wait(),
-      ]);
+      const gasPrice = 50_000_000n; // 50 gwei — bumps any stuck pending approvals
+      console.log('[Izumi] Approving WETH to LiquidityManager...');
+      await (await weth.approve(LIQUIDITY_MANAGER, wethBalance, { gasLimit: 100000n, gasPrice })).wait();
+      console.log('[Izumi] Approving WOKB to LiquidityManager...');
+      await (await wokb.approve(LIQUIDITY_MANAGER, wokbAmount,  { gasLimit: 100000n, gasPrice })).wait();
 
       // ── Mint LP — amountMin=0 so pool accepts any ratio ───────────────────────
       const lm       = new ethers.Contract(LIQUIDITY_MANAGER, LM_ABI, wallet);
