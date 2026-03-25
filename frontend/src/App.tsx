@@ -626,8 +626,8 @@ export default function App() {
           onSetGoal={() => setShowGoalModal(true)}
         />
 
-        {/* ACTIVE POSITIONS */}
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
+        {/* ACTIVE POSITIONS — only visible when wallet connected */}
+        {isConnected && <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CoinsIcon size={16} className="text-purple-400" />
@@ -741,7 +741,7 @@ export default function App() {
               )}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* LEARNING PANEL */}
         <div>

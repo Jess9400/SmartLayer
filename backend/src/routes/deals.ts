@@ -214,33 +214,29 @@ export function createDealRoutes(
         return;
       }
 
-      // Compute weighted allocation scores
-      const weighted = accepted.map(r => ({
+      // Pick the single best deal by combined score (analysis 60% + reputation 40%)
+      const scored = accepted.map(r => ({
         ...r,
         allocScore: (r.overallScore * 0.6) + (r.repScore * 0.4),
-      }));
-      const totalAllocScore = weighted.reduce((s, r) => s + r.allocScore, 0);
-      const maxBudget = Math.min(parseFloat(budgetBalance) * 0.4, 0.002); // max 40% of balance, capped at 0.002 XETH
+      })).sort((a, b) => b.allocScore - a.allocScore);
 
-      const allocations = weighted.map(r => ({
-        ...r,
-        allocatedAmount: maxBudget * (r.allocScore / totalAllocScore),
-      }));
+      const winner = scored[0];
+      const investAmount = Math.min(parseFloat(budgetBalance) * 0.4, 0.001); // up to 40% of balance, capped at 0.001 XETH
 
-      // Broadcast allocation breakdown
-      const allocMsg = allocations.map(r =>
-        `${r.alpha.name}: ${(r.allocScore).toFixed(0)} score → ${(r.allocScore / totalAllocScore * 100).toFixed(0)}% allocation (${r.allocatedAmount.toFixed(5)} XETH)`
-      ).join(' | ');
       broadcast({
         type: 'agent_message', agentId: beta.id, agentName: beta.name,
-        message: `💰 Capital allocation: ${allocMsg}`,
+        message: `🏆 Best deal: ${winner.alpha.name} (score ${winner.allocScore.toFixed(0)}) — deploying ${investAmount.toFixed(5)} XETH into ${winner.deal.protocol}`,
         timestamp: new Date().toISOString(),
       });
 
-      // 6. Execute all accepted deals
+      // Mark non-winners as rejected in response
+      const rejectedByScore = scored.slice(1).map(r => ({ ...r.deal, decision: 'reject' as const, decisionReasoning: 'Outscored by a better deal this round' }));
+
+      // 6. Execute winning deal only
       const finalDeals: Deal[] = [];
-      for (const r of allocations) {
-        const dealToExec = { ...r.deal, investmentAmount: Math.min(r.allocatedAmount, 0.001) };
+      {
+        const r = winner;
+        const dealToExec = { ...r.deal, investmentAmount: investAmount };
         const modeTag = contractsConfigured() ? '[Vault]' : '[Native]';
         broadcast({ type: 'agent_message', agentId: beta.id, agentName: beta.name, message: `Executing ${r.alpha.name}'s deal on XLayer ${modeTag}...`, timestamp: new Date().toISOString() });
 
@@ -277,9 +273,9 @@ export function createDealRoutes(
         finalDeals.push(executed);
       }
 
-      // Include rejected deals in response too
+      // Include all rejected deals in response
       const rejectedDeals = results.filter(r => r.deal.decision !== 'accept').map(r => r.deal);
-      res.json([...finalDeals, ...rejectedDeals]);
+      res.json([...finalDeals, ...rejectedDeals, ...rejectedByScore]);
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
