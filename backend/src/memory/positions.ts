@@ -100,9 +100,36 @@ export async function syncPositions(): Promise<Position[]> {
   const all = readAll();
   const cutoff = Date.now() - 48 * 60 * 60 * 1000;
 
+  // Deduplicate: for each adapter+token combo, keep only the most recent active position
+  const activeByKey = new Map<string, Position>();
   for (const pos of all) {
-    const isActive    = pos.status === 'active';
-    const isRecent    = pos.status === 'withdrawn' && new Date(pos.openedAt).getTime() > cutoff;
+    if (pos.status !== 'active') continue;
+    const key = `${pos.adapterUsed}:${pos.token.symbol}`;
+    const existing = activeByKey.get(key);
+    if (!existing || new Date(pos.openedAt) > new Date(existing.openedAt)) {
+      if (existing) {
+        // Mark the older duplicate as withdrawn
+        updatePosition(existing.id, { status: 'withdrawn', lastCheckedAt: new Date().toISOString() });
+      }
+      activeByKey.set(key, pos);
+    } else {
+      updatePosition(pos.id, { status: 'withdrawn', lastCheckedAt: new Date().toISOString() });
+    }
+  }
+
+  // Track which adapter+token combos already have an active position (after dedup)
+  const activeCombos = new Set(activeByKey.keys());
+
+  const refreshed = readAll(); // re-read after dedup writes
+  for (const pos of refreshed) {
+    const isActive = pos.status === 'active';
+    const key = `${pos.adapterUsed}:${pos.token.symbol}`;
+
+    // For recently-withdrawn: only re-activate if no active position already exists for this combo
+    const isRecent = pos.status === 'withdrawn' &&
+      new Date(pos.openedAt).getTime() > cutoff &&
+      !activeCombos.has(key);
+
     if (!isActive && !isRecent) continue;
 
     const adapter = getAdapter(pos.adapterUsed);
@@ -113,14 +140,15 @@ export async function syncPositions(): Promise<Position[]> {
 
     if (isActive) {
       if (balance === 0n) {
-        // Balance gone — mark withdrawn
         updatePosition(pos.id, { status: 'withdrawn', onChainBalance: '0', lastCheckedAt: new Date().toISOString() });
+        activeCombos.delete(key);
       } else {
         updatePosition(pos.id, { currentAPY, onChainBalance: balance.toString(), lastCheckedAt: new Date().toISOString() });
       }
     } else if (isRecent && balance > 0n) {
-      // Orphaned on-chain balance — re-activate so the withdraw button reappears
+      // Only re-activate the most recent orphaned position per combo
       updatePosition(pos.id, { status: 'active', currentAPY, onChainBalance: balance.toString(), lastCheckedAt: new Date().toISOString() });
+      activeCombos.add(key);
     }
   }
 
