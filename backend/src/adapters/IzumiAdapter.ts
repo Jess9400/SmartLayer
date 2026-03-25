@@ -28,7 +28,7 @@ import { TOKENS, DEFILLAMA_YIELDS_URL } from '../utils/constants';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LIQUIDITY_MANAGER = '0xF42C48f971bDaA130573039B6c940212EeAb8496';
-const IZUMI_POOL        = '0x7e48e0edA28b7BDb42C3A1E5F57ede20B950AeB6';
+const IZUMI_POOL        = '0x7e48e0eda28b7bdb42c3a1e5f57ede20b950aeb6';
 const POOL_FEE          = 3000;
 const POINT_DELTA       = 60;
 const LP_RANGE          = 20000;
