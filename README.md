@@ -30,7 +30,7 @@
 
 ---
 
-> 🎥 **[Watch Demo Video](#)** ← link coming
+> 🎥 **[Watch Demo Video](https://youtu.be/m5qXci0BdPs)**
 >
 > 🐦 **[X Post](https://x.com/LayerSmart34250/status/2036383616553591092)** — official launch post
 >
