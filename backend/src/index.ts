@@ -102,6 +102,29 @@ app.post('/api/positions/:id/withdraw', async (req, res) => {
   }
 });
 
+// /api/vault/fund → deposit available native XETH from agent wallet into vault
+app.post('/api/vault/fund', async (_req, res) => {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.XLAYER_RPC || 'https://rpc.xlayer.tech');
+    const wallet = new ethers.Wallet(process.env.AGENT_BETA_PRIVATE_KEY!, provider);
+    const VAULT_ABI = ['function deposit() external payable', 'function getBalance(address) view returns (uint256)'];
+    const vault = new ethers.Contract(process.env.CONTRACT_VAULT!, VAULT_ABI, wallet);
+
+    const nativeBal = await provider.getBalance(wallet.address);
+    const gasReserve = ethers.parseEther('0.002'); // keep for gas
+    if (nativeBal <= gasReserve) {
+      return res.json({ success: false, message: 'Insufficient native balance', native: ethers.formatEther(nativeBal) });
+    }
+    const depositAmount = nativeBal - gasReserve;
+    const tx = await vault.deposit({ value: depositAmount });
+    await tx.wait();
+    const newBalance = await vault.getBalance(wallet.address);
+    res.json({ success: true, deposited: ethers.formatEther(depositAmount), vaultBalance: ethers.formatEther(newBalance), txHash: tx.hash });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Fund failed' });
+  }
+});
+
 // /api/vault/tokens → ERC-20 token balances for the agent wallet
 app.get('/api/vault/tokens', async (_req, res) => {
   const ERC20_ABI = ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'];
